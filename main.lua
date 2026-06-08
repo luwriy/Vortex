@@ -233,10 +233,7 @@ function Vortex:CreateWindow(options)
         return btn
     end
 
-    AddFooterButton(Color3.fromRGB(255, 215, 0), "rbxassetid://10723387563", FolderCallback)
-    AddFooterButton(Color3.fromRGB(255, 75, 75), "rbxassetid://10747362393", TrashCallback)
-    AddFooterButton(Color3.fromRGB(255, 90, 120), "rbxassetid://10709782845", BugCallback)
-    AddFooterButton(Color3.fromRGB(90, 150, 255), "rbxassetid://10709782758", ThemeCallback)
+
 
     local ContentContainer = Instance.new("Frame")
     ContentContainer.Name = "Content"
@@ -335,8 +332,259 @@ function Vortex:CreateWindow(options)
         Tabs = {},
         CurrentTab = nil,
         TooltipFrame = TooltipFrame,
-        TooltipLabel = TooltipLabel
+        TooltipLabel = TooltipLabel,
+        AccentColors = { Color3.fromRGB(58, 147, 255), Color3.fromRGB(46, 204, 113), Color3.fromRGB(230, 126, 34), Color3.fromRGB(232, 67, 147), Color3.fromRGB(155, 89, 182) },
+        AccentIndex = 1
     }
+
+    function window:Notify(titleText, contentText)
+        local NotifyFrame = Instance.new("Frame")
+        NotifyFrame.Size = UDim2.new(0, 220, 0, 55)
+        NotifyFrame.Position = UDim2.new(1, 30, 1, -75)
+        NotifyFrame.BackgroundColor3 = Color3.fromRGB(22, 25, 36)
+        NotifyFrame.BorderSizePixel = 0
+        NotifyFrame.Parent = ScreenGui
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 6)
+        Corner.Parent = NotifyFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = self.AccentColors[self.AccentIndex]
+        Stroke.Thickness = 1
+        Stroke.Parent = NotifyFrame
+        
+        CreateShadow(NotifyFrame)
+        
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, -24, 0, 20)
+        Title.Position = UDim2.new(0, 12, 0, 6)
+        Title.BackgroundTransparency = 1
+        Title.Font = Enum.Font.GothamBold
+        Title.Text = titleText
+        Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+        Title.TextSize = 12
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+        Title.Parent = NotifyFrame
+        
+        local Content = Instance.new("TextLabel")
+        Content.Size = UDim2.new(1, -24, 0, 20)
+        Content.Position = UDim2.new(0, 12, 0, 24)
+        Content.BackgroundTransparency = 1
+        Content.Font = Enum.Font.Gotham
+        Content.Text = contentText
+        Content.TextColor3 = Color3.fromRGB(170, 175, 190)
+        Content.TextSize = 11
+        Content.TextXAlignment = Enum.TextXAlignment.Left
+        Content.Parent = NotifyFrame
+        
+        Tween(NotifyFrame, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Position = UDim2.new(1, -235, 1, -75)})
+        task.delay(3, function()
+            local t = Tween(NotifyFrame, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {Position = UDim2.new(1, 30, 1, -75)})
+            t.Completed:Connect(function()
+                NotifyFrame:Destroy()
+            end)
+        end)
+    end
+
+    function window:Dialog(titleText, contentText, yesCallback)
+        local Overlay = Instance.new("TextButton")
+        Overlay.Size = UDim2.new(1, 0, 1, 0)
+        Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        Overlay.BackgroundTransparency = 0.5
+        Overlay.Text = ""
+        Overlay.AutoButtonColor = false
+        Overlay.Parent = MainFrame
+        
+        local DialogFrame = Instance.new("Frame")
+        DialogFrame.Size = UDim2.new(0, 280, 0, 130)
+        DialogFrame.Position = UDim2.new(0.5, -140, 0.5, -65)
+        DialogFrame.BackgroundColor3 = Color3.fromRGB(20, 22, 30)
+        DialogFrame.BorderSizePixel = 0
+        DialogFrame.Parent = Overlay
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 8)
+        Corner.Parent = DialogFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = self.AccentColors[self.AccentIndex]
+        Stroke.Thickness = 1.2
+        Stroke.Parent = DialogFrame
+        
+        CreateShadow(DialogFrame)
+        
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, -24, 0, 30)
+        Title.Position = UDim2.new(0, 12, 0, 10)
+        Title.BackgroundTransparency = 1
+        Title.Font = Enum.Font.GothamBold
+        Title.Text = titleText
+        Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+        Title.TextSize = 14
+        Title.TextXAlignment = Enum.TextXAlignment.Center
+        Title.Parent = DialogFrame
+        
+        local Content = Instance.new("TextLabel")
+        Content.Size = UDim2.new(1, -24, 0, 40)
+        Content.Position = UDim2.new(0, 12, 0, 40)
+        Content.BackgroundTransparency = 1
+        Content.Font = Enum.Font.Gotham
+        Content.Text = contentText
+        Content.TextColor3 = Color3.fromRGB(170, 175, 190)
+        Content.TextSize = 12
+        Content.TextWrapped = true
+        Content.TextXAlignment = Enum.TextXAlignment.Center
+        Content.Parent = DialogFrame
+        
+        local YesBtn = Instance.new("TextButton")
+        YesBtn.Size = UDim2.new(0, 100, 0, 28)
+        YesBtn.Position = UDim2.new(0.5, -110, 1, -38)
+        YesBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+        YesBtn.BorderSizePixel = 0
+        YesBtn.Font = Enum.Font.GothamMedium
+        YesBtn.Text = "Yes"
+        YesBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+        YesBtn.TextSize = 12
+        YesBtn.Parent = DialogFrame
+        
+        local YesCorner = Instance.new("UICorner")
+        YesCorner.CornerRadius = UDim.new(0, 5)
+        YesCorner.Parent = YesBtn
+        
+        local YesStroke = Instance.new("UIStroke")
+        YesStroke.Color = Color3.fromRGB(45, 52, 71)
+        YesStroke.Thickness = 1
+        YesStroke.Parent = YesBtn
+        
+        local NoBtn = Instance.new("TextButton")
+        NoBtn.Size = UDim2.new(0, 100, 0, 28)
+        NoBtn.Position = UDim2.new(0.5, 10, 1, -38)
+        NoBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+        NoBtn.BorderSizePixel = 0
+        NoBtn.Font = Enum.Font.GothamMedium
+        NoBtn.Text = "No"
+        NoBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+        NoBtn.TextSize = 12
+        NoBtn.Parent = DialogFrame
+        
+        local NoCorner = Instance.new("UICorner")
+        NoCorner.CornerRadius = UDim.new(0, 5)
+        NoCorner.Parent = NoBtn
+        
+        local NoStroke = Instance.new("UIStroke")
+        NoStroke.Color = Color3.fromRGB(45, 52, 71)
+        NoStroke.Thickness = 1
+        NoStroke.Parent = NoBtn
+        
+        local function ButtonHover(btn, stroke)
+            btn.MouseEnter:Connect(function()
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(40, 45, 60)})
+                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.AccentColors[self.AccentIndex]})
+            end)
+            btn.MouseLeave:Connect(function()
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(35, 40, 55)})
+                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(45, 52, 71)})
+            end)
+        end
+        ButtonHover(YesBtn, YesStroke)
+        ButtonHover(NoBtn, NoStroke)
+        
+        YesBtn.MouseButton1Click:Connect(function()
+            Overlay:Destroy()
+            if yesCallback then yesCallback() end
+        end)
+        
+        NoBtn.MouseButton1Click:Connect(function()
+            Overlay:Destroy()
+        end)
+    end
+
+    local function UpdateAccentColors()
+        local color = window.AccentColors[window.AccentIndex]
+        
+        for _, t in ipairs(window.Tabs) do
+            if window.CurrentTab == t then
+                t.Stroke.Color = color
+            end
+        end
+        
+        for _, opt in pairs(Vortex.Options) do
+            if opt.Type == "Toggle" then
+                opt.UpdateVisual(false)
+            elseif opt.Type == "Slider" then
+                opt.Fill.BackgroundColor3 = color
+            end
+        end
+        
+        TooltipStroke.Color = color
+        MinimizeStroke.Color = color
+    end
+
+    local function OpenConfigFolder()
+        local opened = false
+        if openfolder then
+            local success = pcall(openfolder)
+            if success then
+                opened = true
+            end
+        end
+        if opened then
+            window:Notify("Folder Opened", "Opened executor workspace folder.")
+        else
+            window:Notify("Error", "Your executor does not support openfolder().")
+        end
+        if FolderCallback then
+            FolderCallback(opened)
+        end
+    end
+
+    local function PromptReset()
+        window:Dialog("Reset Settings", "Are you sure you want to reset all options to defaults?", function()
+            for _, opt in pairs(Vortex.Options) do
+                if opt.DefaultValue ~= nil then
+                    opt:SetValue(opt.DefaultValue)
+                end
+            end
+            window:Notify("Settings Reset", "All options have been reset to defaults.")
+            if TrashCallback then
+                TrashCallback()
+            end
+        end)
+    end
+
+    local function ToggleConsole()
+        local StarterGui = game:GetService("StarterGui")
+        local success, visible = pcall(function()
+            return StarterGui:GetCore("DevConsoleVisible")
+        end)
+        if success then
+            StarterGui:SetCore("DevConsoleVisible", not visible)
+            window:Notify("Console Toggled", "Roblox developer console toggled.")
+        else
+            window:Notify("Error", "Failed to access Developer Console.")
+        end
+        if BugCallback then
+            BugCallback()
+        end
+    end
+
+    local function CycleAccent()
+        window.AccentIndex = window.AccentIndex + 1
+        if window.AccentIndex > #window.AccentColors then
+            window.AccentIndex = 1
+        end
+        UpdateAccentColors()
+        window:Notify("Accent Updated", "Theme accent color has been changed.")
+        if ThemeCallback then
+            ThemeCallback(window.AccentColors[window.AccentIndex])
+        end
+    end
+
+    AddFooterButton(Color3.fromRGB(255, 215, 0), "rbxassetid://10723387563", function() OpenConfigFolder() end)
+    AddFooterButton(Color3.fromRGB(255, 75, 75), "rbxassetid://10747362393", function() PromptReset() end)
+    AddFooterButton(Color3.fromRGB(255, 90, 120), "rbxassetid://10709782845", function() ToggleConsole() end)
+    AddFooterButton(Color3.fromRGB(90, 150, 255), "rbxassetid://10709782758", function() CycleAccent() end)
 
     function window:AddTab(tabOptions)
         tabOptions = tabOptions or {}
@@ -551,13 +799,15 @@ function Vortex:CreateWindow(options)
 
             local toggleObject = {
                 Value = default,
+                DefaultValue = default,
                 Type = "Toggle",
                 ChangedCallbacks = {}
             }
 
             local function UpdateVisual(animate)
-                local targetColor = toggleObject.Value and Color3.fromRGB(58, 147, 255) or Color3.fromRGB(40, 45, 55)
-                local targetStrokeColor = toggleObject.Value and Color3.fromRGB(58, 147, 255) or Color3.fromRGB(55, 62, 77)
+                local currentColor = window.AccentColors[window.AccentIndex]
+                local targetColor = toggleObject.Value and currentColor or Color3.fromRGB(40, 45, 55)
+                local targetStrokeColor = toggleObject.Value and currentColor or Color3.fromRGB(55, 62, 77)
                 if animate then
                     Tween(Switch, {0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = targetColor})
                     Tween(SwitchStroke, {0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = targetStrokeColor})
@@ -566,6 +816,7 @@ function Vortex:CreateWindow(options)
                     SwitchStroke.Color = targetStrokeColor
                 end
             end
+            toggleObject.UpdateVisual = UpdateVisual
 
             function toggleObject:OnChanged(callback)
                 table.insert(self.ChangedCallbacks, callback)
@@ -689,7 +940,9 @@ function Vortex:CreateWindow(options)
 
             local sliderObject = {
                 Value = default,
+                DefaultValue = default,
                 Type = "Slider",
+                Fill = Fill,
                 ChangedCallbacks = {}
             }
 
@@ -903,6 +1156,7 @@ function Vortex:CreateWindow(options)
 
             local dropdownObject = {
                 Value = default,
+                DefaultValue = default,
                 Type = "Dropdown",
                 ChangedCallbacks = {}
             }
@@ -1052,6 +1306,7 @@ function Vortex:CreateWindow(options)
 
             local inputObject = {
                 Value = default,
+                DefaultValue = default,
                 Type = "Input",
                 ChangedCallbacks = {}
             }
@@ -1144,6 +1399,7 @@ function Vortex:CreateWindow(options)
 
             local keybindObject = {
                 Value = default,
+                DefaultValue = default,
                 Type = "Keybind",
                 ChangedCallbacks = {}
             }
