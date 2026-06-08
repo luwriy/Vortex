@@ -233,10 +233,10 @@ function Vortex:CreateWindow(options)
         return btn
     end
 
-    AddFooterButton(Color3.fromRGB(255, 215, 0), "rbxassetid://10734947470", FolderCallback)
-    AddFooterButton(Color3.fromRGB(255, 75, 75), "rbxassetid://10734948332", TrashCallback)
-    AddFooterButton(Color3.fromRGB(255, 90, 120), "rbxassetid://10734950309", BugCallback)
-    AddFooterButton(Color3.fromRGB(90, 150, 255), "rbxassetid://10734951478", ThemeCallback)
+    AddFooterButton(Color3.fromRGB(255, 215, 0), "rbxassetid://10723387563", FolderCallback)
+    AddFooterButton(Color3.fromRGB(255, 75, 75), "rbxassetid://10747362393", TrashCallback)
+    AddFooterButton(Color3.fromRGB(255, 90, 120), "rbxassetid://10709782845", BugCallback)
+    AddFooterButton(Color3.fromRGB(90, 150, 255), "rbxassetid://10709782758", ThemeCallback)
 
     local ContentContainer = Instance.new("Frame")
     ContentContainer.Name = "Content"
@@ -347,7 +347,7 @@ function Vortex:CreateWindow(options)
         TabButton.Name = name .. "TabBtn"
         TabButton.Size = UDim2.new(1, -4, 0, 32)
         TabButton.BackgroundColor3 = Color3.fromRGB(22, 25, 36)
-        TabButton.BackgroundTransparency = 1
+        TabButton.BackgroundTransparency = 0
         TabButton.BorderSizePixel = 0
         TabButton.Font = Enum.Font.GothamMedium
         TabButton.Text = ""
@@ -419,6 +419,7 @@ function Vortex:CreateWindow(options)
                 if window.CurrentTab.Button:FindFirstChildOfClass("ImageLabel") then
                     window.CurrentTab.Button:FindFirstChildOfClass("ImageLabel").ImageColor3 = Color3.fromRGB(150, 155, 170)
                 end
+                Tween(window.CurrentTab.Button, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(22, 25, 36)})
                 Tween(window.CurrentTab.Stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(45, 50, 65)})
             end
             window.CurrentTab = tab
@@ -427,6 +428,7 @@ function Vortex:CreateWindow(options)
             if TabButton:FindFirstChildOfClass("ImageLabel") then
                 TabButton:FindFirstChildOfClass("ImageLabel").ImageColor3 = Color3.fromRGB(255, 255, 255)
             end
+            Tween(TabButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(28, 32, 45)})
             Tween(tab.Stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(58, 147, 255)})
         end
 
