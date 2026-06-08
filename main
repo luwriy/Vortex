@@ -753,7 +753,7 @@ function Vortex:CreateWindow(options)
                 fps = math.floor(frameCount / (now - lastUpdate))
                 frameCount = 0
                 lastUpdate = now
-                local ping = math.floor(stats().Network.ServerPing * 1000)
+                local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
                 HUDLabel.Text = "FPS: " .. tostring(fps) .. " | Ping: " .. tostring(ping) .. "ms"
             end
         end)
