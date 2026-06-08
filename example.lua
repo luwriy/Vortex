@@ -138,3 +138,12 @@ local Keybind1 = UtilitiesSection:AddKeybind("DestructKey", {
 Keybind1:OnChanged(function(value)
     print("Self destruct hotkey triggered using:", value.Name)
 end)
+
+local Colorpicker1 = UtilitiesSection:AddColorpicker("ESPColor", {
+    Title = "ESP Box Color",
+    Default = Color3.fromRGB(255, 75, 75)
+})
+
+Colorpicker1:OnChanged(function(value)
+    print("ESP Box color changed to RGB:", value.R * 255, value.G * 255, value.B * 255)
+end)

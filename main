@@ -1219,6 +1219,8 @@ function Vortex:CreateWindow(options)
                 local val = opt.Value
                 if opt.Type == "Keybind" then
                     val = typeof(val) == "EnumItem" and val.Name or tostring(val)
+                elseif opt.Type == "Colorpicker" then
+                    val = typeof(val) == "Color3" and { val.R, val.G, val.B } or { 1, 1, 1 }
                 end
                 table.insert(data.objects, { idx = idx, type = opt.Type, value = val })
             end
@@ -1552,6 +1554,10 @@ function Vortex:CreateWindow(options)
 
             function section:AddKeybind(id, options)
                 return tab:AddKeybind(id, options)
+            end
+
+            function section:AddColorpicker(id, options)
+                return tab:AddColorpicker(id, options)
             end
 
             return section
@@ -2351,6 +2357,482 @@ function Vortex:CreateWindow(options)
             table.insert(tab.Elements, el)
             Vortex.Options[id] = keybindObject
             return keybindObject
+        end
+
+        function tab:AddColorpicker(id, options)
+            options = options or {}
+            local titleText = options.Title or "Colorpicker"
+            local default = options.Default or Color3.fromRGB(255, 255, 255)
+
+            local Container = Instance.new("Frame")
+            Container.Name = titleText
+            Container.Size = UDim2.new(1, 0, 0, 38)
+            Container.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
+            Container.BorderSizePixel = 0
+            Container.Parent = TabScrollContent
+
+            local Corner = Instance.new("UICorner")
+            Corner.CornerRadius = UDim.new(0, 6)
+            Corner.Parent = Container
+
+            local Stroke = Instance.new("UIStroke")
+            Stroke.Color = Color3.fromRGB(40, 46, 64)
+            Stroke.Thickness = 1
+            Stroke.Parent = Container
+
+            local Label = Instance.new("TextLabel")
+            Label.Size = UDim2.new(1, -80, 1, 0)
+            Label.Position = UDim2.new(0, 12, 0, 0)
+            Label.BackgroundTransparency = 1
+            Label.Font = Enum.Font.Gotham
+            Label.TextSize = 13
+            Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+            Label.Text = titleText
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Parent = Container
+
+            local ColorBtn = Instance.new("TextButton")
+            ColorBtn.Size = UDim2.new(0, 45, 0, 22)
+            ColorBtn.Position = UDim2.new(1, -57, 0.5, -11)
+            ColorBtn.BackgroundColor3 = default
+            ColorBtn.BorderSizePixel = 0
+            ColorBtn.Text = ""
+            ColorBtn.Parent = Container
+
+            local ColorCorner = Instance.new("UICorner")
+            ColorCorner.CornerRadius = UDim.new(0, 4)
+            ColorCorner.Parent = ColorBtn
+
+            local ColorStroke = Instance.new("UIStroke")
+            ColorStroke.Color = Color3.fromRGB(45, 52, 71)
+            ColorStroke.Thickness = 1
+            ColorStroke.Parent = ColorBtn
+
+            local colorpickerObject = {
+                Value = default,
+                DefaultValue = default,
+                Type = "Colorpicker",
+                ChangedCallbacks = {}
+            }
+
+            window:RegisterTheme(Container, "BackgroundColor3", "Element")
+            window:RegisterTheme(Stroke, "Color", "Border")
+            window:RegisterTheme(Label, "TextColor3", "Text")
+            window:RegisterTheme(ColorBtn, "BackgroundColor3", "Container")
+            window:RegisterTheme(ColorStroke, "Color", "Border")
+
+            function colorpickerObject:OnChanged(callback)
+                table.insert(self.ChangedCallbacks, callback)
+                task.spawn(callback, self.Value)
+                return {
+                    Disconnect = function()
+                        local idx = table.find(self.ChangedCallbacks, callback)
+                        if idx then
+                            table.remove(self.ChangedCallbacks, idx)
+                        end
+                    end
+                }
+            end
+
+            function colorpickerObject:SetValue(val)
+                if typeof(val) == "Color3" then
+                    self.Value = val
+                elseif typeof(val) == "table" then
+                    self.Value = Color3.new(val[1], val[2], val[3])
+                else
+                    self.Value = self.DefaultValue
+                end
+                ColorBtn.BackgroundColor3 = self.Value
+                for _, cb in ipairs(self.ChangedCallbacks) do
+                    task.spawn(cb, self.Value)
+                end
+            end
+
+            ColorBtn.MouseButton1Click:Connect(function()
+                local Overlay = Instance.new("TextButton")
+                Overlay.Size = UDim2.new(1, 0, 1, 0)
+                Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                Overlay.BackgroundTransparency = 0.6
+                Overlay.Text = ""
+                Overlay.AutoButtonColor = false
+                Overlay.Parent = MainFrame
+
+                local DialogFrame = Instance.new("Frame")
+                DialogFrame.Size = UDim2.new(0, 360, 0, 240)
+                DialogFrame.Position = UDim2.new(0.5, -180, 0.5, -120)
+                DialogFrame.BackgroundColor3 = window.CurrentTheme.MainFrame
+                DialogFrame.BorderSizePixel = 0
+                DialogFrame.Parent = Overlay
+
+                local DialogCorner = Instance.new("UICorner")
+                DialogCorner.CornerRadius = UDim.new(0, 8)
+                DialogCorner.Parent = DialogFrame
+
+                local DialogStroke = Instance.new("UIStroke")
+                DialogStroke.Color = window.CurrentTheme.Accent
+                DialogStroke.Thickness = 1.2
+                DialogStroke.Parent = DialogFrame
+
+                CreateShadow(DialogFrame)
+
+                local Title = Instance.new("TextLabel")
+                Title.Size = UDim2.new(1, -20, 0, 30)
+                Title.Position = UDim2.new(0, 10, 0, 8)
+                Title.BackgroundTransparency = 1
+                Title.Font = Enum.Font.GothamBold
+                Title.Text = titleText
+                Title.TextColor3 = window.CurrentTheme.Text
+                Title.TextSize = 13
+                Title.TextXAlignment = Enum.TextXAlignment.Center
+                Title.Parent = DialogFrame
+
+                local SatVibMap = Instance.new("ImageLabel")
+                SatVibMap.Size = UDim2.new(0, 140, 0, 120)
+                SatVibMap.Position = UDim2.new(0, 15, 0, 45)
+                SatVibMap.Image = "rbxassetid://4155801252"
+                SatVibMap.BorderSizePixel = 0
+                SatVibMap.Parent = DialogFrame
+
+                local SatVibCorner = Instance.new("UICorner")
+                SatVibCorner.CornerRadius = UDim.new(0, 4)
+                SatVibCorner.Parent = SatVibMap
+
+                local SatCursor = Instance.new("ImageLabel")
+                SatCursor.Size = UDim2.new(0, 10, 0, 10)
+                SatCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+                SatCursor.BackgroundTransparency = 1
+                SatCursor.Image = "rbxassetid://4805639000"
+                SatCursor.Parent = SatVibMap
+
+                local HueSlider = Instance.new("Frame")
+                HueSlider.Size = UDim2.new(0, 12, 0, 120)
+                HueSlider.Position = UDim2.new(0, 170, 0, 45)
+                HueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                HueSlider.BorderSizePixel = 0
+                HueSlider.Parent = DialogFrame
+
+                local HueSliderCorner = Instance.new("UICorner")
+                HueSliderCorner.CornerRadius = UDim.new(0, 4)
+                HueSliderCorner.Parent = HueSlider
+
+                local HueGradient = Instance.new("UIGradient")
+                local kps = {}
+                for idx = 0, 10 do
+                    local p = idx / 10
+                    table.insert(kps, ColorSequenceKeypoint.new(p, Color3.fromHSV(p, 1, 1)))
+                end
+                HueGradient.Color = ColorSequence.new(kps)
+                HueGradient.Rotation = 90
+                HueGradient.Parent = HueSlider
+
+                local HueIndicator = Instance.new("Frame")
+                HueIndicator.Size = UDim2.new(1, 4, 0, 4)
+                HueIndicator.Position = UDim2.new(0, -2, 0, 0)
+                HueIndicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                HueIndicator.BorderSizePixel = 0
+                HueIndicator.Parent = HueSlider
+
+                local HueIndicatorStroke = Instance.new("UIStroke")
+                HueIndicatorStroke.Color = Color3.fromRGB(0, 0, 0)
+                HueIndicatorStroke.Thickness = 1
+                HueIndicatorStroke.Parent = HueIndicator
+
+                local HexInputContainer = Instance.new("Frame")
+                HexInputContainer.Size = UDim2.new(0, 90, 0, 24)
+                HexInputContainer.Position = UDim2.new(0, 200, 0, 45)
+                HexInputContainer.BackgroundColor3 = window.CurrentTheme.Container
+                HexInputContainer.BorderSizePixel = 0
+                HexInputContainer.Parent = DialogFrame
+
+                local HexInputCorner = Instance.new("UICorner")
+                HexInputCorner.CornerRadius = UDim.new(0, 4)
+                HexInputCorner.Parent = HexInputContainer
+
+                local HexInputStroke = Instance.new("UIStroke")
+                HexInputStroke.Color = window.CurrentTheme.Border
+                HexInputStroke.Thickness = 1
+                HexInputStroke.Parent = HexInputContainer
+
+                local HexInput = Instance.new("TextBox")
+                HexInput.Size = UDim2.new(1, -10, 1, 0)
+                HexInput.Position = UDim2.new(0, 5, 0, 0)
+                HexInput.BackgroundTransparency = 1
+                HexInput.Font = Enum.Font.Gotham
+                HexInput.TextSize = 11
+                HexInput.TextColor3 = window.CurrentTheme.Text
+                HexInput.Text = ""
+                HexInput.Parent = HexInputContainer
+
+                local HexLabel = Instance.new("TextLabel")
+                HexLabel.Size = UDim2.new(0, 40, 0, 24)
+                HexLabel.Position = UDim2.new(0, 295, 0, 45)
+                HexLabel.BackgroundTransparency = 1
+                HexLabel.Font = Enum.Font.Gotham
+                HexLabel.TextSize = 11
+                HexLabel.TextColor3 = window.CurrentTheme.MutedText
+                HexLabel.Text = "HEX"
+                HexLabel.TextXAlignment = Enum.TextXAlignment.Left
+                HexLabel.Parent = DialogFrame
+
+                local function CreateRGBInput(yPos, labelText)
+                    local ContainerFrame = Instance.new("Frame")
+                    ContainerFrame.Size = UDim2.new(0, 40, 0, 24)
+                    ContainerFrame.Position = UDim2.new(0, 200, 0, yPos)
+                    ContainerFrame.BackgroundColor3 = window.CurrentTheme.Container
+                    ContainerFrame.BorderSizePixel = 0
+                    ContainerFrame.Parent = DialogFrame
+
+                    local CornerFrame = Instance.new("UICorner")
+                    CornerFrame.CornerRadius = UDim.new(0, 4)
+                    CornerFrame.Parent = ContainerFrame
+
+                    local StrokeFrame = Instance.new("UIStroke")
+                    StrokeFrame.Color = window.CurrentTheme.Border
+                    StrokeFrame.Thickness = 1
+                    StrokeFrame.Parent = ContainerFrame
+
+                    local Box = Instance.new("TextBox")
+                    Box.Size = UDim2.new(1, -4, 1, 0)
+                    Box.Position = UDim2.new(0, 2, 0, 0)
+                    Box.BackgroundTransparency = 1
+                    Box.Font = Enum.Font.Gotham
+                    Box.TextSize = 11
+                    Box.TextColor3 = window.CurrentTheme.Text
+                    Box.Text = ""
+                    Box.Parent = ContainerFrame
+
+                    local LabelFrame = Instance.new("TextLabel")
+                    LabelFrame.Size = UDim2.new(0, 15, 0, 24)
+                    LabelFrame.Position = UDim2.new(0, 245, 0, yPos)
+                    LabelFrame.BackgroundTransparency = 1
+                    LabelFrame.Font = Enum.Font.Gotham
+                    LabelFrame.TextSize = 11
+                    LabelFrame.TextColor3 = window.CurrentTheme.MutedText
+                    LabelFrame.Text = labelText
+                    LabelFrame.TextXAlignment = Enum.TextXAlignment.Left
+                    LabelFrame.Parent = DialogFrame
+
+                    window:RegisterTheme(ContainerFrame, "BackgroundColor3", "Container")
+                    window:RegisterTheme(StrokeFrame, "Color", "Border")
+                    window:RegisterTheme(Box, "TextColor3", "Text")
+                    window:RegisterTheme(LabelFrame, "TextColor3", "MutedText")
+
+                    return Box
+                end
+
+                local RInput = CreateRGBInput(75, "R")
+                local GInput = CreateRGBInput(105, "G")
+                local BInput = CreateRGBInput(135, "B")
+
+                local PreviewBox = Instance.new("Frame")
+                PreviewBox.Size = UDim2.new(0, 65, 0, 84)
+                PreviewBox.Position = UDim2.new(0, 275, 0, 75)
+                PreviewBox.BackgroundColor3 = colorpickerObject.Value
+                PreviewBox.BorderSizePixel = 0
+                PreviewBox.Parent = DialogFrame
+
+                local PreviewCorner = Instance.new("UICorner")
+                PreviewCorner.CornerRadius = UDim.new(0, 4)
+                PreviewCorner.Parent = PreviewBox
+
+                local PreviewStroke = Instance.new("UIStroke")
+                PreviewStroke.Color = window.CurrentTheme.Border
+                PreviewStroke.Thickness = 1
+                PreviewStroke.Parent = PreviewBox
+
+                local currentH, currentS, currentV = Color3.toHSV(colorpickerObject.Value)
+
+                local function UpdateVisuals()
+                    local col = Color3.fromHSV(currentH, currentS, currentV)
+                    SatVibMap.BackgroundColor3 = Color3.fromHSV(currentH, 1, 1)
+                    SatCursor.Position = UDim2.new(currentS, 0, 1 - currentV, 0)
+                    HueIndicator.Position = UDim2.new(0, -2, currentH, -2)
+                    PreviewBox.BackgroundColor3 = col
+
+                    if not HexInput:IsFocused() then
+                        HexInput.Text = "#" .. col:ToHex()
+                    end
+                    if not RInput:IsFocused() then
+                        RInput.Text = tostring(math.round(col.R * 255))
+                    end
+                    if not GInput:IsFocused() then
+                        GInput.Text = tostring(math.round(col.G * 255))
+                    end
+                    if not BInput:IsFocused() then
+                        BInput.Text = tostring(math.round(col.B * 255))
+                    end
+                end
+
+                local function UpdateSatVib(pos)
+                    local relativeX = pos.X - SatVibMap.AbsolutePosition.X
+                    local relativeY = pos.Y - SatVibMap.AbsolutePosition.Y
+                    currentS = math.clamp(relativeX / SatVibMap.AbsoluteSize.X, 0, 1)
+                    currentV = math.clamp(1 - (relativeY / SatVibMap.AbsoluteSize.Y), 0, 1)
+                    UpdateVisuals()
+                end
+
+                local function UpdateHue(pos)
+                    local relativeY = pos.Y - HueSlider.AbsolutePosition.Y
+                    currentH = math.clamp(relativeY / HueSlider.AbsoluteSize.Y, 0, 1)
+                    UpdateVisuals()
+                end
+
+                local satDragging = false
+                SatVibMap.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        satDragging = true
+                        UpdateSatVib(input.Position)
+                    end
+                end)
+
+                UserInputService.InputChanged:Connect(function(input)
+                    if satDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                        UpdateSatVib(input.Position)
+                    end
+                end)
+
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        satDragging = false
+                    end
+                end)
+
+                local hueDragging = false
+                HueSlider.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        hueDragging = true
+                        UpdateHue(input.Position)
+                    end
+                end)
+
+                UserInputService.InputChanged:Connect(function(input)
+                    if hueDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                        UpdateHue(input.Position)
+                    end
+                end)
+
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        hueDragging = false
+                    end
+                end)
+
+                local function ApplyRGB()
+                    local r = tonumber(RInput.Text) or 0
+                    local g = tonumber(GInput.Text) or 0
+                    local b = tonumber(BInput.Text) or 0
+                    r = math.clamp(r, 0, 255)
+                    g = math.clamp(g, 0, 255)
+                    b = math.clamp(b, 0, 255)
+                    currentH, currentS, currentV = Color3.toHSV(Color3.fromRGB(r, g, b))
+                    UpdateVisuals()
+                end
+
+                local function ApplyHex()
+                    local txt = HexInput.Text
+                    if string.sub(txt, 1, 1) ~= "#" then
+                        txt = "#" .. txt
+                    end
+                    local success, result = pcall(Color3.fromHex, txt)
+                    if success and typeof(result) == "Color3" then
+                        currentH, currentS, currentV = Color3.toHSV(result)
+                    end
+                    UpdateVisuals()
+                end
+
+                RInput.FocusLost:Connect(ApplyRGB)
+                GInput.FocusLost:Connect(ApplyRGB)
+                BInput.FocusLost:Connect(ApplyRGB)
+                HexInput.FocusLost:Connect(ApplyHex)
+
+                local DoneBtn = Instance.new("TextButton")
+                DoneBtn.Size = UDim2.new(0, 100, 0, 28)
+                DoneBtn.Position = UDim2.new(0.5, -110, 1, -34)
+                DoneBtn.BackgroundColor3 = window.CurrentTheme.Container
+                DoneBtn.BorderSizePixel = 0
+                DoneBtn.Font = Enum.Font.GothamMedium
+                DoneBtn.Text = "Done"
+                DoneBtn.TextColor3 = window.CurrentTheme.Text
+                DoneBtn.TextSize = 12
+                DoneBtn.Parent = DialogFrame
+
+                local DoneCorner = Instance.new("UICorner")
+                DoneCorner.CornerRadius = UDim.new(0, 5)
+                DoneCorner.Parent = DoneBtn
+
+                local DoneStroke = Instance.new("UIStroke")
+                DoneStroke.Color = window.CurrentTheme.Border
+                DoneStroke.Thickness = 1
+                DoneStroke.Parent = DoneBtn
+
+                local CancelBtn = Instance.new("TextButton")
+                CancelBtn.Size = UDim2.new(0, 100, 0, 28)
+                CancelBtn.Position = UDim2.new(0.5, 10, 1, -34)
+                CancelBtn.BackgroundColor3 = window.CurrentTheme.Container
+                CancelBtn.BorderSizePixel = 0
+                CancelBtn.Font = Enum.Font.GothamMedium
+                CancelBtn.Text = "Cancel"
+                CancelBtn.TextColor3 = window.CurrentTheme.Text
+                CancelBtn.TextSize = 12
+                CancelBtn.Parent = DialogFrame
+
+                local CancelCorner = Instance.new("UICorner")
+                CancelCorner.CornerRadius = UDim.new(0, 5)
+                CancelCorner.Parent = CancelBtn
+
+                local CancelStroke = Instance.new("UIStroke")
+                CancelStroke.Color = window.CurrentTheme.Border
+                CancelStroke.Thickness = 1
+                CancelStroke.Parent = CancelBtn
+
+                local function HoverBtn(btn, stroke)
+                    btn.MouseEnter:Connect(function()
+                        Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(window.CurrentTheme.Container)})
+                        Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Accent})
+                    end)
+                    btn.MouseLeave:Connect(function()
+                        Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = window.CurrentTheme.Container})
+                        Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Border})
+                    end)
+                end
+
+                HoverBtn(DoneBtn, DoneStroke)
+                HoverBtn(CancelBtn, CancelStroke)
+
+                DoneBtn.MouseButton1Click:Connect(function()
+                    colorpickerObject:SetValue(Color3.fromHSV(currentH, currentS, currentV))
+                    Overlay:Destroy()
+                end)
+
+                CancelBtn.MouseButton1Click:Connect(function()
+                    Overlay:Destroy()
+                end)
+
+                window:RegisterTheme(DialogFrame, "BackgroundColor3", "MainFrame")
+                window:RegisterTheme(DialogStroke, "Color", "Accent")
+                window:RegisterTheme(Title, "TextColor3", "Text")
+                window:RegisterTheme(HexInputContainer, "BackgroundColor3", "Container")
+                window:RegisterTheme(HexInputStroke, "Color", "Border")
+                window:RegisterTheme(HexInput, "TextColor3", "Text")
+                window:RegisterTheme(HexLabel, "TextColor3", "MutedText")
+                window:RegisterTheme(PreviewStroke, "Color", "Border")
+                window:RegisterTheme(DoneBtn, "BackgroundColor3", "Container")
+                window:RegisterTheme(DoneBtn, "TextColor3", "Text")
+                window:RegisterTheme(DoneStroke, "Color", "Border")
+                window:RegisterTheme(CancelBtn, "BackgroundColor3", "Container")
+                window:RegisterTheme(CancelBtn, "TextColor3", "Text")
+                window:RegisterTheme(CancelStroke, "Color", "Border")
+
+                UpdateVisuals()
+            end)
+
+            local el = {
+                Name = titleText,
+                Frame = Container
+            }
+            table.insert(tab.Elements, el)
+            Vortex.Options[id] = colorpickerObject
+            return colorpickerObject
         end
 
         table.insert(window.Tabs, tab)
