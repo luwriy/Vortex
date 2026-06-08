@@ -161,7 +161,7 @@ function Vortex:CreateWindow(options)
     TabScroll.BorderSizePixel = 0
     TabScroll.ScrollBarThickness = 0
     TabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    TabScroll.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+    TabScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     TabScroll.Parent = SidebarFrame
 
     local TabListLayout = Instance.new("UIListLayout")
@@ -366,7 +366,7 @@ function Vortex:CreateWindow(options)
         TabScrollContent.ScrollBarThickness = 2
         TabScrollContent.ScrollBarImageColor3 = Color3.fromRGB(58, 147, 255)
         TabScrollContent.CanvasSize = UDim2.new(0, 0, 0, 0)
-        TabScrollContent.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+        TabScrollContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
         TabScrollContent.Visible = false
         TabScrollContent.Parent = ContentContainer
 
