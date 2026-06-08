@@ -1329,7 +1329,11 @@ function Vortex:CreateWindow(options)
             
             local data = { objects = {} }
             for idx, opt in pairs(Vortex.Options) do
-                table.insert(data.objects, { idx = idx, type = opt.Type, value = opt.Value })
+                local val = opt.Value
+                if opt.Type == "Keybind" then
+                    val = typeof(val) == "EnumItem" and val.Name or tostring(val)
+                end
+                table.insert(data.objects, { idx = idx, type = opt.Type, value = val })
             end
             local success, encoded = pcall(game:GetService("HttpService").JSONEncode, game:GetService("HttpService"), data)
             if success then
@@ -2456,6 +2460,12 @@ function Vortex:CreateWindow(options)
             end
 
             function keybindObject:SetValue(val)
+                if typeof(val) == "string" then
+                    local success, code = pcall(function() return Enum.KeyCode[val] end)
+                    val = success and code or self.DefaultValue
+                elseif typeof(val) ~= "EnumItem" then
+                    val = self.DefaultValue
+                end
                 self.Value = val
                 KeyBtn.Text = val.Name
                 for _, cb in ipairs(self.ChangedCallbacks) do
