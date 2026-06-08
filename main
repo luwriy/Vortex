@@ -280,8 +280,8 @@ function Vortex:CreateWindow(options)
 
     local dragging = false
     local dragStart, startPos
-    MainFrame.InputBegan:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and (input.Target == MainFrame or input.Target == SidebarFrame or input.Target == ContentContainer) then
+    MainFrame.InputBegan:Connect(function(input, processed)
+        if not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
             dragging = true
             dragStart = input.Position
             startPos = MainFrame.Position
