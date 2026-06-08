@@ -1,4 +1,7 @@
-local Vortex = {}
+local Vortex = {
+    Options = {}
+}
+
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
@@ -42,6 +45,7 @@ end
 function Vortex:CreateWindow(options)
     options = options or {}
     local TitleText = options.Title or "Vortex"
+    local SubTitleText = options.SubTitle or ""
     local MinimizeText = options.MinimizeText or "Versus Airlines"
     
     local FolderCallback = options.FolderCallback
@@ -334,7 +338,11 @@ function Vortex:CreateWindow(options)
         TooltipLabel = TooltipLabel
     }
 
-    function window:CreateTab(name)
+    function window:AddTab(tabOptions)
+        tabOptions = tabOptions or {}
+        local name = tabOptions.Title or "Tab"
+        local icon = tabOptions.Icon
+
         local TabButton = Instance.new("TextButton")
         TabButton.Name = name .. "TabBtn"
         TabButton.Size = UDim2.new(1, -4, 0, 32)
@@ -342,9 +350,8 @@ function Vortex:CreateWindow(options)
         TabButton.BackgroundTransparency = 1
         TabButton.BorderSizePixel = 0
         TabButton.Font = Enum.Font.GothamMedium
-        TabButton.Text = name
-        TabButton.TextColor3 = Color3.fromRGB(150, 155, 170)
-        TabButton.TextSize = 12
+        TabButton.Text = ""
+        TabButton.Parent = TabScroll
 
         local TabBtnCorner = Instance.new("UICorner")
         TabBtnCorner.CornerRadius = UDim.new(0, 6)
@@ -355,7 +362,27 @@ function Vortex:CreateWindow(options)
         TabBtnStroke.Thickness = 1
         TabBtnStroke.Parent = TabButton
 
-        TabButton.Parent = TabScroll
+        local LabelOffset = icon and 32 or 12
+        local TabLabel = Instance.new("TextLabel")
+        TabLabel.Size = UDim2.new(1, -LabelOffset, 1, 0)
+        TabLabel.Position = UDim2.new(0, LabelOffset, 0, 0)
+        TabLabel.BackgroundTransparency = 1
+        TabLabel.Font = Enum.Font.GothamMedium
+        TabLabel.Text = name
+        TabLabel.TextColor3 = Color3.fromRGB(150, 155, 170)
+        TabLabel.TextSize = 12
+        TabLabel.TextXAlignment = Enum.TextXAlignment.Left
+        TabLabel.Parent = TabButton
+
+        if icon then
+            local TabIcon = Instance.new("ImageLabel")
+            TabIcon.Size = UDim2.new(0, 16, 0, 16)
+            TabIcon.Position = UDim2.new(0, 8, 0.5, -8)
+            TabIcon.BackgroundTransparency = 1
+            TabIcon.Image = icon
+            TabIcon.ImageColor3 = Color3.fromRGB(150, 155, 170)
+            TabIcon.Parent = TabButton
+        end
 
         local TabScrollContent = Instance.new("ScrollingFrame")
         TabScrollContent.Name = name .. "Content"
@@ -379,6 +406,7 @@ function Vortex:CreateWindow(options)
         local tab = {
             Name = name,
             Button = TabButton,
+            Label = TabLabel,
             Stroke = TabBtnStroke,
             ContentFrame = TabScrollContent,
             Elements = {}
@@ -387,12 +415,18 @@ function Vortex:CreateWindow(options)
         local function Select()
             if window.CurrentTab then
                 window.CurrentTab.ContentFrame.Visible = false
-                window.CurrentTab.Button.TextColor3 = Color3.fromRGB(150, 155, 170)
+                window.CurrentTab.Label.TextColor3 = Color3.fromRGB(150, 155, 170)
+                if window.CurrentTab.Button:FindFirstChildOfClass("ImageLabel") then
+                    window.CurrentTab.Button:FindFirstChildOfClass("ImageLabel").ImageColor3 = Color3.fromRGB(150, 155, 170)
+                end
                 Tween(window.CurrentTab.Stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(45, 50, 65)})
             end
             window.CurrentTab = tab
             tab.ContentFrame.Visible = true
-            tab.Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            tab.Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+            if TabButton:FindFirstChildOfClass("ImageLabel") then
+                TabButton:FindFirstChildOfClass("ImageLabel").ImageColor3 = Color3.fromRGB(255, 255, 255)
+            end
             Tween(tab.Stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(58, 147, 255)})
         end
 
@@ -401,7 +435,7 @@ function Vortex:CreateWindow(options)
             Select()
         end
 
-        function tab:CreateSection(title)
+        function tab:AddSection(title)
             local SectionLabel = Instance.new("TextLabel")
             SectionLabel.Size = UDim2.new(1, 0, 0, 24)
             SectionLabel.BackgroundTransparency = 1
@@ -416,28 +450,28 @@ function Vortex:CreateWindow(options)
 
             local section = {}
 
-            function section:CreateToggle(options)
-                return tab:CreateToggle(options)
+            function section:AddToggle(id, options)
+                return tab:AddToggle(id, options)
             end
 
-            function section:CreateSlider(options)
-                return tab:CreateSlider(options)
+            function section:AddSlider(id, options)
+                return tab:AddSlider(id, options)
             end
 
-            function section:CreateButton(options)
-                return tab:CreateButton(options)
+            function section:AddButton(options)
+                return tab:AddButton(options)
             end
 
-            function section:CreateDropdown(options)
-                return tab:CreateDropdown(options)
+            function section:AddDropdown(id, options)
+                return tab:AddDropdown(id, options)
             end
 
-            function section:CreateTextBox(options)
-                return tab:CreateTextBox(options)
+            function section:AddInput(id, options)
+                return tab:AddInput(id, options)
             end
 
-            function section:CreateKeybind(options)
-                return tab:CreateKeybind(options)
+            function section:AddKeybind(id, options)
+                return tab:AddKeybind(id, options)
             end
 
             return section
@@ -463,15 +497,14 @@ function Vortex:CreateWindow(options)
             end)
         end
 
-        function tab:CreateToggle(options)
+        function tab:AddToggle(id, options)
             options = options or {}
-            local name = options.Name or "Toggle"
+            local titleText = options.Title or "Toggle"
             local default = options.Default or false
             local infoText = options.Info
-            local callback = options.Callback
 
             local Container = Instance.new("Frame")
-            Container.Name = name
+            Container.Name = titleText
             Container.Size = UDim2.new(1, 0, 0, 38)
             Container.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
             Container.BorderSizePixel = 0
@@ -493,7 +526,7 @@ function Vortex:CreateWindow(options)
             Label.Font = Enum.Font.Gotham
             Label.TextSize = 13
             Label.TextColor3 = Color3.fromRGB(230, 230, 230)
-            Label.Text = name
+            Label.Text = titleText
             Label.TextXAlignment = Enum.TextXAlignment.Left
             Label.Parent = Container
 
@@ -514,11 +547,15 @@ function Vortex:CreateWindow(options)
             SwitchStroke.Thickness = 1
             SwitchStroke.Parent = Switch
 
-            local state = default
+            local toggleObject = {
+                Value = default,
+                Type = "Toggle",
+                ChangedCallbacks = {}
+            }
 
             local function UpdateVisual(animate)
-                local targetColor = state and Color3.fromRGB(58, 147, 255) or Color3.fromRGB(40, 45, 55)
-                local targetStrokeColor = state and Color3.fromRGB(58, 147, 255) or Color3.fromRGB(55, 62, 77)
+                local targetColor = toggleObject.Value and Color3.fromRGB(58, 147, 255) or Color3.fromRGB(40, 45, 55)
+                local targetStrokeColor = toggleObject.Value and Color3.fromRGB(58, 147, 255) or Color3.fromRGB(55, 62, 77)
                 if animate then
                     Tween(Switch, {0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = targetColor})
                     Tween(SwitchStroke, {0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = targetStrokeColor})
@@ -527,14 +564,32 @@ function Vortex:CreateWindow(options)
                     SwitchStroke.Color = targetStrokeColor
                 end
             end
+
+            function toggleObject:OnChanged(callback)
+                table.insert(self.ChangedCallbacks, callback)
+                task.spawn(callback, self.Value)
+                return {
+                    Disconnect = function()
+                        local idx = table.find(self.ChangedCallbacks, callback)
+                        if idx then
+                            table.remove(self.ChangedCallbacks, idx)
+                        end
+                    end
+                }
+            end
+
+            function toggleObject:SetValue(val)
+                self.Value = val
+                UpdateVisual(true)
+                for _, cb in ipairs(self.ChangedCallbacks) do
+                    task.spawn(cb, self.Value)
+                end
+            end
+
             UpdateVisual(false)
 
             Switch.MouseButton1Click:Connect(function()
-                state = not state
-                UpdateVisual(true)
-                if callback then
-                    callback(state)
-                end
+                toggleObject:SetValue(not toggleObject.Value)
             end)
 
             if infoText and infoText ~= "" then
@@ -549,24 +604,24 @@ function Vortex:CreateWindow(options)
             end
 
             local el = {
-                Name = name,
+                Name = titleText,
                 Frame = Container
             }
             table.insert(tab.Elements, el)
-            return el
+            Vortex.Options[id] = toggleObject
+            return toggleObject
         end
 
-        function tab:CreateSlider(options)
+        function tab:AddSlider(id, options)
             options = options or {}
-            local name = options.Name or "Slider"
+            local titleText = options.Title or "Slider"
             local min = options.Min or 0
             local max = options.Max or 100
             local default = options.Default or min
-            local step = options.Step or 1
-            local callback = options.Callback
+            local rounding = options.Rounding or 1
 
             local Container = Instance.new("Frame")
-            Container.Name = name
+            Container.Name = titleText
             Container.Size = UDim2.new(1, 0, 0, 45)
             Container.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
             Container.BorderSizePixel = 0
@@ -588,7 +643,7 @@ function Vortex:CreateWindow(options)
             Label.Font = Enum.Font.Gotham
             Label.TextSize = 13
             Label.TextColor3 = Color3.fromRGB(230, 230, 230)
-            Label.Text = name
+            Label.Text = titleText
             Label.TextXAlignment = Enum.TextXAlignment.Left
             Label.Parent = Container
 
@@ -630,21 +685,46 @@ function Vortex:CreateWindow(options)
             FillCorner.CornerRadius = UDim.new(0, 4)
             FillCorner.Parent = Fill
 
-            local value = default
+            local sliderObject = {
+                Value = default,
+                Type = "Slider",
+                ChangedCallbacks = {}
+            }
 
-            local function SetValue(val, animate)
-                val = math.clamp(val, min, max)
+            local function UpdateVisual(animate)
                 local range = max - min
-                local pct = range == 0 and 0 or (val - min) / range
-                value = val
-                ValueLabel.Text = tostring(val)
+                local pct = range == 0 and 0 or (sliderObject.Value - min) / range
+                ValueLabel.Text = tostring(sliderObject.Value)
                 if animate then
                     Tween(Fill, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(pct, 0, 1, 0)})
                 else
                     Fill.Size = UDim2.new(pct, 0, 1, 0)
                 end
             end
-            SetValue(default, false)
+
+            function sliderObject:OnChanged(callback)
+                table.insert(self.ChangedCallbacks, callback)
+                task.spawn(callback, self.Value)
+                return {
+                    Disconnect = function()
+                        local idx = table.find(self.ChangedCallbacks, callback)
+                        if idx then
+                            table.remove(self.ChangedCallbacks, idx)
+                        end
+                    end
+                }
+            end
+
+            function sliderObject:SetValue(val)
+                val = math.clamp(val, min, max)
+                self.Value = val
+                UpdateVisual(true)
+                for _, cb in ipairs(self.ChangedCallbacks) do
+                    task.spawn(cb, self.Value)
+                end
+            end
+
+            UpdateVisual(false)
 
             local dragging = false
 
@@ -654,52 +734,52 @@ function Vortex:CreateWindow(options)
                 local trackWidth = Track.AbsoluteSize.X
                 local pct = math.clamp((mouseX - trackX) / trackWidth, 0, 1)
                 local rawVal = min + pct * (max - min)
-                local val = math.floor((rawVal - min) / step + 0.5) * step + min
-                val = math.clamp(val, min, max)
-                SetValue(val, false)
-                if callback then
-                    callback(val)
+                local val
+                if rounding == 0 then
+                    val = rawVal
+                else
+                    val = math.floor((rawVal - min) / rounding + 0.5) * rounding + min
                 end
+                val = math.clamp(val, min, max)
+                sliderObject:SetValue(val)
             end
-
-            local moveCon, endCon
 
             Track.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     dragging = true
                     HandleInput()
-                    if moveCon then moveCon:Disconnect() end
-                    if endCon then endCon:Disconnect() end
-                    moveCon = UserInputService.InputChanged:Connect(function(moveInput)
-                        if dragging and (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) then
-                            HandleInput()
-                        end
-                    end)
-                    endCon = UserInputService.InputEnded:Connect(function(endInput)
-                        if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
-                            dragging = false
-                            if moveCon then moveCon:Disconnect() moveCon = nil end
-                            if endCon then endCon:Disconnect() endCon = nil end
-                        end
-                    end)
+                end
+            end)
+
+            local moveCon, endCon
+            moveCon = UserInputService.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    HandleInput()
+                end
+            end)
+
+            endCon = UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = false
                 end
             end)
 
             local el = {
-                Name = name,
+                Name = titleText,
                 Frame = Container
             }
             table.insert(tab.Elements, el)
-            return el
+            Vortex.Options[id] = sliderObject
+            return sliderObject
         end
 
-        function tab:CreateButton(options)
+        function tab:AddButton(options)
             options = options or {}
-            local name = options.Name or "Button"
+            local titleText = options.Title or "Button"
             local callback = options.Callback
 
             local Container = Instance.new("Frame")
-            Container.Name = name
+            Container.Name = titleText
             Container.Size = UDim2.new(1, 0, 0, 38)
             Container.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
             Container.BorderSizePixel = 0
@@ -720,7 +800,7 @@ function Vortex:CreateWindow(options)
             Btn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
             Btn.BorderSizePixel = 0
             Btn.Font = Enum.Font.GothamMedium
-            Btn.Text = name
+            Btn.Text = titleText
             Btn.TextColor3 = Color3.fromRGB(240, 240, 240)
             Btn.TextSize = 13
             Btn.Parent = Container
@@ -746,27 +826,27 @@ function Vortex:CreateWindow(options)
 
             Btn.MouseButton1Click:Connect(function()
                 if callback then
-                    callback()
+                    task.spawn(callback)
                 end
             end)
 
             local el = {
-                Name = name,
+                Name = titleText,
                 Frame = Container
             }
             table.insert(tab.Elements, el)
             return el
         end
 
-        function tab:CreateDropdown(options)
+        function tab:AddDropdown(id, options)
             options = options or {}
-            local name = options.Name or "Dropdown"
-            local list = options.List or {}
+            local titleText = options.Title or "Dropdown"
+            local list = options.Values or {}
             local default = options.Default
             local callback = options.Callback
 
             local Container = Instance.new("Frame")
-            Container.Name = name
+            Container.Name = titleText
             Container.Size = UDim2.new(1, 0, 0, 38)
             Container.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
             Container.BorderSizePixel = 0
@@ -789,7 +869,7 @@ function Vortex:CreateWindow(options)
             Label.Font = Enum.Font.Gotham
             Label.TextSize = 13
             Label.TextColor3 = Color3.fromRGB(230, 230, 230)
-            Label.Text = name .. (default and (" - " .. tostring(default)) or "")
+            Label.Text = titleText .. (default and (" - " .. tostring(default)) or "")
             Label.TextXAlignment = Enum.TextXAlignment.Left
             Label.Parent = Container
 
@@ -819,8 +899,13 @@ function Vortex:CreateWindow(options)
             OptionsLayout.Padding = UDim.new(0, 4)
             OptionsLayout.Parent = OptionsContainer
 
+            local dropdownObject = {
+                Value = default,
+                Type = "Dropdown",
+                ChangedCallbacks = {}
+            }
+
             local open = false
-            local selected = default
 
             local function ToggleOpen()
                 open = not open
@@ -831,6 +916,27 @@ function Vortex:CreateWindow(options)
                 Tween(Container, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, 0, 0, targetHeight)})
                 Tween(OptionsContainer, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -24, 0, open and (targetHeight - 42) or 0)})
                 Tween(Icon, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Rotation = open and 180 or 0})
+            end
+
+            function dropdownObject:OnChanged(callback)
+                table.insert(self.ChangedCallbacks, callback)
+                task.spawn(callback, self.Value)
+                return {
+                    Disconnect = function()
+                        local idx = table.find(self.ChangedCallbacks, callback)
+                        if idx then
+                            table.remove(self.ChangedCallbacks, idx)
+                        end
+                    end
+                }
+            end
+
+            function dropdownObject:SetValue(val)
+                self.Value = val
+                Label.Text = titleText .. " - " .. tostring(val)
+                for _, cb in ipairs(self.ChangedCallbacks) do
+                    task.spawn(cb, self.Value)
+                end
             end
 
             ClickBtn.MouseButton1Click:Connect(ToggleOpen)
@@ -866,31 +972,28 @@ function Vortex:CreateWindow(options)
                 end)
 
                 OptBtn.MouseButton1Click:Connect(function()
-                    selected = val
-                    Label.Text = name .. " - " .. tostring(val)
+                    dropdownObject:SetValue(val)
                     ToggleOpen()
-                    if callback then
-                        callback(val)
-                    end
                 end)
             end
 
             local el = {
-                Name = name,
+                Name = titleText,
                 Frame = Container
             }
             table.insert(tab.Elements, el)
-            return el
+            Vortex.Options[id] = dropdownObject
+            return dropdownObject
         end
 
-        function tab:CreateTextBox(options)
+        function tab:AddInput(id, options)
             options = options or {}
-            local name = options.Name or "TextBox"
+            local titleText = options.Title or "TextBox"
             local placeholder = options.Placeholder or "Enter text..."
-            local callback = options.Callback
+            local default = options.Default or ""
 
             local Container = Instance.new("Frame")
-            Container.Name = name
+            Container.Name = titleText
             Container.Size = UDim2.new(1, 0, 0, 38)
             Container.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
             Container.BorderSizePixel = 0
@@ -912,7 +1015,7 @@ function Vortex:CreateWindow(options)
             Label.Font = Enum.Font.Gotham
             Label.TextSize = 13
             Label.TextColor3 = Color3.fromRGB(230, 230, 230)
-            Label.Text = name
+            Label.Text = titleText
             Label.TextXAlignment = Enum.TextXAlignment.Left
             Label.Parent = Container
 
@@ -941,32 +1044,57 @@ function Vortex:CreateWindow(options)
             Box.TextColor3 = Color3.fromRGB(240, 240, 240)
             Box.PlaceholderColor3 = Color3.fromRGB(120, 125, 140)
             Box.PlaceholderText = placeholder
-            Box.Text = ""
+            Box.Text = default
             Box.TextXAlignment = Enum.TextXAlignment.Left
             Box.Parent = BoxContainer
 
-            Box.FocusLost:Connect(function(enterPressed)
-                if callback then
-                    callback(Box.Text, enterPressed)
+            local inputObject = {
+                Value = default,
+                Type = "Input",
+                ChangedCallbacks = {}
+            }
+
+            function inputObject:OnChanged(callback)
+                table.insert(self.ChangedCallbacks, callback)
+                task.spawn(callback, self.Value)
+                return {
+                    Disconnect = function()
+                        local idx = table.find(self.ChangedCallbacks, callback)
+                        if idx then
+                            table.remove(self.ChangedCallbacks, idx)
+                        end
+                    end
+                }
+            end
+
+            function inputObject:SetValue(val)
+                self.Value = val
+                Box.Text = tostring(val)
+                for _, cb in ipairs(self.ChangedCallbacks) do
+                    task.spawn(cb, self.Value)
                 end
+            end
+
+            Box.FocusLost:Connect(function(enterPressed)
+                inputObject:SetValue(Box.Text)
             end)
 
             local el = {
-                Name = name,
+                Name = titleText,
                 Frame = Container
             }
             table.insert(tab.Elements, el)
-            return el
+            Vortex.Options[id] = inputObject
+            return inputObject
         end
 
-        function tab:CreateKeybind(options)
+        function tab:AddKeybind(id, options)
             options = options or {}
-            local name = options.Name or "Keybind"
+            local titleText = options.Title or "Keybind"
             local default = options.Default or Enum.KeyCode.F
-            local callback = options.Callback
 
             local Container = Instance.new("Frame")
-            Container.Name = name
+            Container.Name = titleText
             Container.Size = UDim2.new(1, 0, 0, 38)
             Container.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
             Container.BorderSizePixel = 0
@@ -988,7 +1116,7 @@ function Vortex:CreateWindow(options)
             Label.Font = Enum.Font.Gotham
             Label.TextSize = 13
             Label.TextColor3 = Color3.fromRGB(230, 230, 230)
-            Label.Text = name
+            Label.Text = titleText
             Label.TextXAlignment = Enum.TextXAlignment.Left
             Label.Parent = Container
 
@@ -1012,9 +1140,35 @@ function Vortex:CreateWindow(options)
             KeyStroke.Thickness = 1
             KeyStroke.Parent = KeyBtn
 
-            local activeKey = default
+            local keybindObject = {
+                Value = default,
+                Type = "Keybind",
+                ChangedCallbacks = {}
+            }
+
             local connection
             local listening = false
+
+            function keybindObject:OnChanged(callback)
+                table.insert(self.ChangedCallbacks, callback)
+                task.spawn(callback, self.Value)
+                return {
+                    Disconnect = function()
+                        local idx = table.find(self.ChangedCallbacks, callback)
+                        if idx then
+                            table.remove(self.ChangedCallbacks, idx)
+                        end
+                    end
+                }
+            end
+
+            function keybindObject:SetValue(val)
+                self.Value = val
+                KeyBtn.Text = val.Name
+                for _, cb in ipairs(self.ChangedCallbacks) do
+                    task.spawn(cb, self.Value)
+                end
+            end
 
             KeyBtn.MouseButton1Click:Connect(function()
                 if listening then return end
@@ -1022,23 +1176,30 @@ function Vortex:CreateWindow(options)
                 KeyBtn.Text = "..."
                 connection = UserInputService.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.Keyboard then
-                        activeKey = input.KeyCode
-                        KeyBtn.Text = activeKey.Name
                         listening = false
                         connection:Disconnect()
-                        if callback then
-                            callback(activeKey)
-                        end
+                        keybindObject:SetValue(input.KeyCode)
                     end
                 end)
             end)
 
+            UserInputService.InputBegan:Connect(function(input, processed)
+                if not processed and not UserInputService:GetFocusedTextBox() then
+                    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == keybindObject.Value then
+                        for _, cb in ipairs(keybindObject.ChangedCallbacks) do
+                            task.spawn(cb, keybindObject.Value)
+                        end
+                    end
+                end
+            end)
+
             local el = {
-                Name = name,
+                Name = titleText,
                 Frame = Container
             }
             table.insert(tab.Elements, el)
-            return el
+            Vortex.Options[id] = keybindObject
+            return keybindObject
         end
 
         table.insert(window.Tabs, tab)

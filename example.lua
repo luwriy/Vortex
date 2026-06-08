@@ -2,6 +2,7 @@ local Vortex = loadstring(readfile("main.lua"))()
 
 local Window = Vortex:CreateWindow({
     Title = "Versus Airlines",
+    SubTitle = "v1.0.0",
     MinimizeText = "Versus Airlines",
     FolderCallback = function()
         print("Folder button clicked")
@@ -17,112 +18,123 @@ local Window = Vortex:CreateWindow({
     end
 })
 
-local MainTab = Window:CreateTab("Main")
-local UpgradesTab = Window:CreateTab("Upgrades")
-local RewardsTab = Window:CreateTab("Rewards")
-local PlayerTab = Window:CreateTab("Local Player")
-local PerformanceTab = Window:CreateTab("FPS / Performance")
+local MainTab = Window:AddTab({ Title = "Main" })
+local UpgradesTab = Window:AddTab({ Title = "Upgrades" })
+local RewardsTab = Window:AddTab({ Title = "Rewards", Icon = "rbxassetid://10734950309" })
+local PlayerTab = Window:AddTab({ Title = "Local Player" })
+local PerformanceTab = Window:AddTab({ Title = "FPS / Performance" })
 
-local RewardsSection = RewardsTab:CreateSection("Extra Useful Features")
+local RewardsSection = RewardsTab:AddSection("Extra Useful Features")
 
-RewardsSection:CreateToggle({
-    Name = "Auto Redeem Cash Drops",
-    Default = false,
-    Callback = function(value)
-        print("Auto Redeem Cash Drops:", value)
-    end
+local Toggle1 = RewardsSection:AddToggle("RedeemDrops", {
+    Title = "Auto Redeem Cash Drops",
+    Default = false
 })
 
-RewardsSection:CreateToggle({
-    Name = "Auto Use Cash Vines",
-    Default = false,
-    Callback = function(value)
-        print("Auto Use Cash Vines:", value)
-    end
+Toggle1:OnChanged(function(value)
+    print("Auto Redeem Cash Drops changed:", value)
+end)
+
+local Toggle2 = RewardsSection:AddToggle("UseVines", {
+    Title = "Auto Use Cash Vines",
+    Default = false
 })
 
-RewardsSection:CreateToggle({
-    Name = "Auto Click Fruit / Click Hints",
-    Default = false,
-    Callback = function(value)
-        print("Auto Click Fruit:", value)
-    end
+Toggle2:OnChanged(function(value)
+    print("Auto Use Cash Vines changed:", value)
+end)
+
+local Toggle3 = RewardsSection:AddToggle("ClickFruit", {
+    Title = "Auto Click Fruit / Click Hints",
+    Default = false
 })
 
-RewardsSection:CreateSlider({
-    Name = "Phone Offer Raises",
+Toggle3:OnChanged(function(value)
+    print("Auto Click Fruit changed:", value)
+end)
+
+local Slider1 = RewardsSection:AddSlider("PhoneRaises", {
+    Title = "Phone Offer Raises",
     Min = 1,
     Max = 10,
     Default = 2,
-    Step = 1,
-    Callback = function(value)
-        print("Phone Offer Raises level:", value)
-    end
+    Rounding = 1
 })
 
-RewardsSection:CreateToggle({
-    Name = "Auto Raise + Accept Phone Offers",
+Slider1:OnChanged(function(value)
+    print("Phone Offer Raises changed:", value)
+end)
+
+local Toggle4 = RewardsSection:AddToggle("PhoneOffers", {
+    Title = "Auto Raise + Accept Phone Offers",
     Default = false,
-    Info = "Automatically raises and accepts phone offers.",
-    Callback = function(value)
-        print("Auto Raise + Accept Phone Offers:", value)
-    end
+    Info = "Automatically raises and accepts phone offers."
 })
 
-local PlayerSection = PlayerTab:CreateSection("Player Settings")
+Toggle4:OnChanged(function(value)
+    print("Auto Raise + Accept Phone Offers changed:", value)
+end)
 
-PlayerSection:CreateSlider({
-    Name = "WalkSpeed",
+local PlayerSection = PlayerTab:AddSection("Player Settings")
+
+local Slider2 = PlayerSection:AddSlider("WalkSpeed", {
+    Title = "WalkSpeed",
     Min = 16,
     Max = 100,
     Default = 16,
-    Step = 1,
-    Callback = function(value)
-        print("WalkSpeed set to:", value)
-    end
+    Rounding = 1
 })
 
-PlayerSection:CreateSlider({
-    Name = "JumpPower",
+Slider2:OnChanged(function(value)
+    print("WalkSpeed changed:", value)
+end)
+
+local Slider3 = PlayerSection:AddSlider("JumpPower", {
+    Title = "JumpPower",
     Min = 50,
     Max = 200,
     Default = 50,
-    Step = 5,
-    Callback = function(value)
-        print("JumpPower set to:", value)
-    end
+    Rounding = 5
 })
 
-local UtilitiesSection = MainTab:CreateSection("Universal Utilities")
+Slider3:OnChanged(function(value)
+    print("JumpPower changed:", value)
+end)
 
-UtilitiesSection:CreateButton({
-    Name = "Destroy Lobby",
+local UtilitiesSection = MainTab:AddSection("Universal Utilities")
+
+local Button1 = UtilitiesSection:AddButton({
+    Title = "Destroy Lobby",
     Callback = function()
-        print("Lobby destroyed")
+        print("Lobby destroyed button pressed")
     end
 })
 
-UtilitiesSection:CreateDropdown({
-    Name = "Teleport Destination",
-    List = {"Lobby", "Farm", "Shop", "VIP Area"},
-    Default = "Lobby",
-    Callback = function(value)
-        print("Teleporting to:", value)
-    end
+local Dropdown1 = UtilitiesSection:AddDropdown("TeleportDest", {
+    Title = "Teleport Destination",
+    Values = {"Lobby", "Farm", "Shop", "VIP Area"},
+    Default = "Lobby"
 })
 
-UtilitiesSection:CreateTextBox({
-    Name = "Announcement Title",
+Dropdown1:OnChanged(function(value)
+    print("Teleport destination set to:", value)
+end)
+
+local Input1 = UtilitiesSection:AddInput("AnnTitle", {
+    Title = "Announcement Title",
     Placeholder = "Type announcement...",
-    Callback = function(text, enter)
-        print("Announcement text:", text, "Pressed enter:", enter)
-    end
+    Default = ""
 })
 
-UtilitiesSection:CreateKeybind({
-    Name = "Self Destruct Keybind",
-    Default = Enum.KeyCode.K,
-    Callback = function(key)
-        print("Keybound bound to:", key.Name)
-    end
+Input1:OnChanged(function(value)
+    print("Announcement title set to:", value)
+end)
+
+local Keybind1 = UtilitiesSection:AddKeybind("DestructKey", {
+    Title = "Self Destruct Keybind",
+    Default = Enum.KeyCode.K
 })
+
+Keybind1:OnChanged(function(value)
+    print("Self destruct hotkey triggered using:", value.Name)
+end)
