@@ -48,8 +48,18 @@ local function SanitizeName(name)
     return sanitized
 end
 
+local function GetHoverColor(color)
+    local h, s, v = color:ToHSV()
+    if v > 0.5 then
+        return Color3.fromHSV(h, s, math.clamp(v - 0.1, 0, 1))
+    else
+        return Color3.fromHSV(h, s, math.clamp(v + 0.1, 0, 1))
+    end
+end
+
 function Vortex:CreateWindow(options)
     options = options or {}
+    local window
     local TitleText = options.Title or "Vortex"
     local SubTitleText = options.SubTitle or ""
     local MinimizeText = options.MinimizeText or "Versus Airlines"
@@ -199,7 +209,6 @@ function Vortex:CreateWindow(options)
     local function AddFooterButton(color, iconId, callback)
         local btn = Instance.new("ImageButton")
         btn.Size = UDim2.new(0, 20, 0, 20)
-        btn.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
         btn.BorderSizePixel = 0
         btn.Image = iconId
         btn.ImageColor3 = color
@@ -217,18 +226,20 @@ function Vortex:CreateWindow(options)
         btnCorner.Parent = btn
 
         local btnStroke = Instance.new("UIStroke")
-        btnStroke.Color = Color3.fromRGB(40, 46, 64)
         btnStroke.Thickness = 1
         btnStroke.Parent = btn
 
+        window:RegisterTheme(btn, "BackgroundColor3", "Element")
+        window:RegisterTheme(btnStroke, "Color", "Border")
+
         btn.MouseEnter:Connect(function()
-            Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(35, 40, 55)})
+            Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(window.CurrentTheme.Element)})
             Tween(btnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = color})
         end)
 
         btn.MouseLeave:Connect(function()
-            Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(28, 32, 45)})
-            Tween(btnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(40, 46, 64)})
+            Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = window.CurrentTheme.Element})
+            Tween(btnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Border})
         end)
 
         btn.MouseButton1Click:Connect(function()
@@ -281,43 +292,82 @@ function Vortex:CreateWindow(options)
 
     CreateShadow(MinimizeButton)
 
-    local dragging = false
-    local dragStart, startPos
-    MainFrame.InputBegan:Connect(function(input, processed)
-        if not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-            dragging = true
-            dragStart = input.Position
-            startPos = MainFrame.Position
-        end
-    end)
+    local function MakeDraggable(frame)
+        local frameDragging = false
+        local dragStart, startPos
+        frame.Active = true
+        frame.InputBegan:Connect(function(input, processed)
+            if not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+                frameDragging = true
+                dragStart = input.Position
+                startPos = frame.Position
+            end
+        end)
 
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
+        UserInputService.InputChanged:Connect(function(input)
+            if frameDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
 
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                frameDragging = false
+            end
+        end)
+    end
+
+    local function MakeButtonDraggable(btn, clickCallback)
+        local buttonDragging = false
+        local dragStart, startPos
+        local dragDistance = 0
+        btn.Active = true
+        btn.InputBegan:Connect(function(input, processed)
+            if not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+                buttonDragging = true
+                dragDistance = 0
+                dragStart = input.Position
+                startPos = btn.Position
+            end
+        end)
+
+        UserInputService.InputChanged:Connect(function(input)
+            if buttonDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                dragDistance = dragDistance + delta.Magnitude
+                btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if buttonDragging then
+                    buttonDragging = false
+                    if dragDistance < 5 then
+                        clickCallback()
+                    end
+                end
+            end
+        end)
+    end
+
+    MakeDraggable(MainFrame)
 
     local isMinimized = false
     local lastPosition = MainFrame.Position
 
     MinimizeButton.MouseEnter:Connect(function()
-        Tween(MinimizeButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(28, 32, 45)})
-        Tween(MinimizeStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(58, 147, 255)})
+        Tween(MinimizeButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(window.CurrentTheme.Container)})
+        Tween(MinimizeStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Accent})
     end)
 
     MinimizeButton.MouseLeave:Connect(function()
-        Tween(MinimizeButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(22, 25, 36)})
-        Tween(MinimizeStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(33, 38, 54)})
+        Tween(MinimizeButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = window.CurrentTheme.Container})
+        Tween(MinimizeStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Border})
     end)
 
-    MinimizeButton.MouseButton1Click:Connect(function()
+    MakeButtonDraggable(MinimizeButton, function()
         isMinimized = not isMinimized
         if isMinimized then
             lastPosition = MainFrame.Position
@@ -332,7 +382,7 @@ function Vortex:CreateWindow(options)
         end
     end)
 
-    local window = {
+    window = {
         ScreenGui = ScreenGui,
         MainFrame = MainFrame,
         Tabs = {},
@@ -662,7 +712,7 @@ function Vortex:CreateWindow(options)
 
         local function ButtonHover(btn, stroke)
             btn.MouseEnter:Connect(function()
-                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(40, 45, 60)})
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(self.CurrentTheme.Container)})
                 Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Accent})
             end)
             btn.MouseLeave:Connect(function()
@@ -758,6 +808,8 @@ function Vortex:CreateWindow(options)
             end
         end)
         
+        MakeDraggable(HUDFrame)
+
         self.HUDFrame = HUDFrame
         self.HUDConnection = hudConnection
         self:Notify("HUD Enabled", "Developer FPS & Ping HUD overlay enabled.")
@@ -879,17 +931,25 @@ function Vortex:CreateWindow(options)
         for _, tName in ipairs(themeNames) do
             local OptBtn = Instance.new("TextButton")
             OptBtn.Size = UDim2.new(1, 0, 0, 24)
-            OptBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
             OptBtn.BorderSizePixel = 0
             OptBtn.Font = Enum.Font.GothamMedium
             OptBtn.Text = tName
-            OptBtn.TextColor3 = Color3.fromRGB(200, 205, 220)
             OptBtn.TextSize = 11
             OptBtn.Parent = OptionsFrame
 
             local OptCorner = Instance.new("UICorner")
             OptCorner.CornerRadius = UDim.new(0, 4)
             OptCorner.Parent = OptBtn
+
+            self:RegisterTheme(OptBtn, "BackgroundColor3", "Container")
+            self:RegisterTheme(OptBtn, "TextColor3", "Text")
+
+            OptBtn.MouseEnter:Connect(function()
+                Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(self.CurrentTheme.Container)})
+            end)
+            OptBtn.MouseLeave:Connect(function()
+                Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = self.CurrentTheme.Container})
+            end)
 
             OptBtn.MouseButton1Click:Connect(function()
                 selectedTheme = tName
@@ -944,6 +1004,19 @@ function Vortex:CreateWindow(options)
         self:RegisterTheme(CloseBtn, "BackgroundColor3", "Container")
         self:RegisterTheme(CloseBtn, "TextColor3", "Text")
         self:RegisterTheme(CloseStroke, "Color", "Border")
+
+        local function DialogButtonHover(btn, stroke)
+            btn.MouseEnter:Connect(function()
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(self.CurrentTheme.Container)})
+                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Accent})
+            end)
+            btn.MouseLeave:Connect(function()
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = self.CurrentTheme.Container})
+                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Border})
+            end)
+        end
+        DialogButtonHover(ApplyBtn, ApplyStroke)
+        DialogButtonHover(CloseBtn, CloseStroke)
 
         ApplyBtn.MouseButton1Click:Connect(function()
             self:SetTheme(selectedTheme)
@@ -1097,17 +1170,25 @@ function Vortex:CreateWindow(options)
             for _, cName in ipairs(list) do
                 local OptBtn = Instance.new("TextButton")
                 OptBtn.Size = UDim2.new(1, 0, 0, 24)
-                OptBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
                 OptBtn.BorderSizePixel = 0
                 OptBtn.Font = Enum.Font.GothamMedium
                 OptBtn.Text = cName
-                OptBtn.TextColor3 = Color3.fromRGB(200, 205, 220)
                 OptBtn.TextSize = 11
                 OptBtn.Parent = OptionsFrame
 
                 local OptCorner = Instance.new("UICorner")
                 OptCorner.CornerRadius = UDim.new(0, 4)
                 OptCorner.Parent = OptBtn
+
+                window:RegisterTheme(OptBtn, "BackgroundColor3", "Container")
+                window:RegisterTheme(OptBtn, "TextColor3", "Text")
+
+                OptBtn.MouseEnter:Connect(function()
+                    Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(self.CurrentTheme.Container)})
+                end)
+                OptBtn.MouseLeave:Connect(function()
+                    Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = self.CurrentTheme.Container})
+                end)
 
                 OptBtn.MouseButton1Click:Connect(function()
                     selectedConfig = cName
@@ -1204,6 +1285,16 @@ function Vortex:CreateWindow(options)
             window:RegisterTheme(btn, "BackgroundColor3", "Container")
             window:RegisterTheme(btn, "TextColor3", "Text")
             window:RegisterTheme(btnStroke, "Color", "Border")
+
+            btn.MouseEnter:Connect(function()
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(self.CurrentTheme.Container)})
+                Tween(btnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Accent})
+            end)
+
+            btn.MouseLeave:Connect(function()
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = self.CurrentTheme.Container})
+                Tween(btnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Border})
+            end)
 
             btn.MouseButton1Click:Connect(callback)
             return btn
@@ -1548,8 +1639,8 @@ function Vortex:CreateWindow(options)
 
             local function UpdateVisual(animate)
                 local currentColor = window.CurrentTheme.Accent
-                local targetColor = toggleObject.Value and currentColor or Color3.fromRGB(40, 45, 55)
-                local targetStrokeColor = toggleObject.Value and currentColor or Color3.fromRGB(55, 62, 77)
+                local targetColor = toggleObject.Value and currentColor or window.CurrentTheme.Container
+                local targetStrokeColor = toggleObject.Value and currentColor or window.CurrentTheme.Border
                 if animate then
                     Tween(Switch, {0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = targetColor})
                     Tween(SwitchStroke, {0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = targetStrokeColor})
@@ -1563,8 +1654,8 @@ function Vortex:CreateWindow(options)
             window:RegisterTheme(Container, "BackgroundColor3", "Element")
             window:RegisterTheme(Stroke, "Color", "Border")
             window:RegisterTheme(Label, "TextColor3", "Text")
-            window:RegisterTheme(Switch, "BackgroundColor3", "Accent", function() return toggleObject.Value end, Color3.fromRGB(40, 45, 55))
-            window:RegisterTheme(SwitchStroke, "Color", "Accent", function() return toggleObject.Value end, Color3.fromRGB(55, 62, 77))
+            window:RegisterTheme(Switch, "BackgroundColor3", "Accent", function() return toggleObject.Value end, "Container")
+            window:RegisterTheme(SwitchStroke, "Color", "Accent", function() return toggleObject.Value end, "Border")
 
             function toggleObject:OnChanged(callback)
                 table.insert(self.ChangedCallbacks, callback)
@@ -1843,7 +1934,7 @@ function Vortex:CreateWindow(options)
             window:RegisterTheme(Btn, "TextColor3", "Text")
 
             Btn.MouseEnter:Connect(function()
-                Tween(Btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(40, 45, 60)})
+                Tween(Btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(window.CurrentTheme.Container)})
                 Tween(BtnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Accent})
             end)
 
@@ -2000,7 +2091,7 @@ function Vortex:CreateWindow(options)
                 window:RegisterTheme(OptBtn, "TextColor3", "Text")
 
                 OptBtn.MouseEnter:Connect(function()
-                    Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(40, 45, 60)})
+                    Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(window.CurrentTheme.Container)})
                     Tween(OptStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Accent})
                 end)
 
