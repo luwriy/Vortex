@@ -1753,6 +1753,7 @@ function Vortex:CreateWindow(options)
             Track.Position = UDim2.new(0, 12, 0, 26)
             Track.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
             Track.BorderSizePixel = 0
+            Track.AutoButtonColor = false
             Track.Text = ""
             Track.Parent = Container
 
