@@ -57,42 +57,12 @@ local function GetHoverColor(color)
     end
 end
 
-local function CreateRipple(parentBtn, mousePos)
-    local ripple = Instance.new("ImageLabel")
-    ripple.Name = "Ripple"
-    ripple.AnchorPoint = Vector2.new(0.5, 0.5)
-    ripple.BackgroundTransparency = 1
-    ripple.Image = "rbxassetid://10747361877"
-    ripple.ImageColor3 = Color3.fromRGB(255, 255, 255)
-    ripple.ImageTransparency = 0.6
-    
-    local relX = mousePos.X - parentBtn.AbsolutePosition.X
-    local relY = mousePos.Y - parentBtn.AbsolutePosition.Y
-    ripple.Position = UDim2.new(0, relX, 0, relY)
-    ripple.Size = UDim2.new(0, 0, 0, 0)
-    ripple.Parent = parentBtn
-    
-    local oldClips = parentBtn.ClipsDescendants
-    parentBtn.ClipsDescendants = true
-    
-    local maxDimension = math.max(parentBtn.AbsoluteSize.X, parentBtn.AbsoluteSize.Y)
-    local t = Tween(ripple, {0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
-        Size = UDim2.new(0, maxDimension * 2.2, 0, maxDimension * 2.2),
-        ImageTransparency = 1
-    })
-    
-    t.Completed:Connect(function()
-        ripple:Destroy()
-        parentBtn.ClipsDescendants = oldClips
-    end)
-end
-
 function Vortex:CreateWindow(options)
     options = options or {}
     local window
     local TitleText = options.Title or "Vortex"
     local SubTitleText = options.SubTitle or ""
-    local MinimizeText = options.MinimizeText or "Versus Airlines"
+    local MinimizeText = options.MinimizeText or "Vortex"
     
     local FolderCallback = options.FolderCallback
     local TrashCallback = options.TrashCallback
@@ -157,26 +127,7 @@ function Vortex:CreateWindow(options)
 
     local MainShadow = CreateShadow(MainFrame)
 
-    local TabIndicator = Instance.new("Frame")
-    TabIndicator.Name = "TabIndicator"
-    TabIndicator.Size = UDim2.new(0, 2, 0, 0)
-    TabIndicator.Position = UDim2.new(0, 4, 0, 0)
-    TabIndicator.BackgroundColor3 = Color3.fromRGB(58, 147, 255)
-    TabIndicator.BorderSizePixel = 0
-    TabIndicator.Visible = false
-    TabIndicator.Parent = SidebarFrame
 
-    task.spawn(function()
-        while task.wait(2) do
-            if ScreenGui and ScreenGui.Parent then
-                Tween(MainStroke, {1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut}, {Thickness = 1.6})
-                task.wait(1)
-                Tween(MainStroke, {1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut}, {Thickness = 1.2})
-            else
-                break
-            end
-        end
-    end)
 
     local SidebarFrame = Instance.new("Frame")
     SidebarFrame.Name = "Sidebar"
@@ -294,7 +245,6 @@ function Vortex:CreateWindow(options)
         end)
 
         btn.MouseButton1Click:Connect(function()
-            CreateRipple(btn, Vector2.new(Mouse.X, Mouse.Y))
             if callback then
                 callback()
             end
@@ -342,25 +292,15 @@ function Vortex:CreateWindow(options)
     MinimizeStroke.Thickness = 1
     MinimizeStroke.Parent = MinimizeButton
 
-    CreateShadow(MinimizeButton)
-
     local function MakeDraggable(frame)
         local frameDragging = false
         local dragStart, startPos
-        local lastMouseX = 0
         frame.Active = true
         frame.InputBegan:Connect(function(input, processed)
             if not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
                 frameDragging = true
                 dragStart = input.Position
                 startPos = frame.Position
-                lastMouseX = input.Position.X
-                if frame == MainFrame then
-                    Tween(MainShadow, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
-                        Size = UDim2.new(1, 45, 1, 45),
-                        ImageTransparency = 0.35
-                    })
-                end
             end
         end)
 
@@ -368,31 +308,12 @@ function Vortex:CreateWindow(options)
             if frameDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                 local delta = input.Position - dragStart
                 frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-                if frame == MainFrame then
-                    local currentX = input.Position.X
-                    local dx = currentX - lastMouseX
-                    lastMouseX = currentX
-                    Tween(frame, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
-                        Rotation = math.clamp(dx * 0.4, -6, 6)
-                    })
-                end
             end
         end)
 
         UserInputService.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                if frameDragging then
-                    frameDragging = false
-                    if frame == MainFrame then
-                        Tween(MainShadow, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
-                            Size = UDim2.new(1, 30, 1, 30),
-                            ImageTransparency = 0.5
-                        })
-                        Tween(frame, {0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {
-                            Rotation = 0
-                        })
-                    end
-                end
+                frameDragging = false
             end
         end)
     end
@@ -437,12 +358,10 @@ function Vortex:CreateWindow(options)
 
     MinimizeButton.MouseEnter:Connect(function()
         Tween(MinimizeButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(window.CurrentTheme.Container)})
-        Tween(MinimizeStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Accent})
     end)
 
     MinimizeButton.MouseLeave:Connect(function()
         Tween(MinimizeButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = window.CurrentTheme.Container})
-        Tween(MinimizeStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Border})
     end)
 
     MakeButtonDraggable(MinimizeButton, function()
@@ -621,7 +540,7 @@ function Vortex:CreateWindow(options)
     window:RegisterTheme(TooltipFrame, "BackgroundColor3", "MainFrame")
     window:RegisterTheme(TooltipStroke, "Color", "Accent")
     window:RegisterTheme(TooltipLabel, "TextColor3", "Text")
-    window:RegisterTheme(TabIndicator, "BackgroundColor3", "Accent")
+
 
     function window:Notify(titleText, contentText)
         local NotifyFrame = Instance.new("Frame")
@@ -790,33 +709,17 @@ function Vortex:CreateWindow(options)
                 Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = self.CurrentTheme.Container})
                 Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Border})
             end)
-            btn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(btn, {0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(0, normalSize.X.Offset - 8, 0, normalSize.Y.Offset - 4)})
-                end
-            end)
-            btn.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(btn, {0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {Size = normalSize})
-                end
-            end)
         end
         SetupDialogButton(YesBtn, YesStroke, UDim2.new(0, 100, 0, 28))
         SetupDialogButton(NoBtn, NoStroke, UDim2.new(0, 100, 0, 28))
         
         YesBtn.MouseButton1Click:Connect(function()
-            CreateRipple(YesBtn, Vector2.new(Mouse.X, Mouse.Y))
-            task.delay(0.12, function()
-                Overlay:Destroy()
-                if yesCallback then yesCallback() end
-            end)
+            Overlay:Destroy()
+            if yesCallback then yesCallback() end
         end)
         
         NoBtn.MouseButton1Click:Connect(function()
-            CreateRipple(NoBtn, Vector2.new(Mouse.X, Mouse.Y))
-            task.delay(0.12, function()
-                Overlay:Destroy()
-            end)
+            Overlay:Destroy()
         end)
     end
 
@@ -1103,37 +1006,21 @@ function Vortex:CreateWindow(options)
                 Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = self.CurrentTheme.Container})
                 Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Border})
             end)
-            btn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(btn, {0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(0, normalSize.X.Offset - 8, 0, normalSize.Y.Offset - 4)})
-                end
-            end)
-            btn.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(btn, {0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {Size = normalSize})
-                end
-            end)
         end
         DialogButtonHover(ApplyBtn, ApplyStroke, UDim2.new(0, 110, 0, 30))
         DialogButtonHover(CloseBtn, CloseStroke, UDim2.new(0, 110, 0, 30))
 
         ApplyBtn.MouseButton1Click:Connect(function()
-            CreateRipple(ApplyBtn, Vector2.new(Mouse.X, Mouse.Y))
-            task.delay(0.12, function()
-                self:SetTheme(selectedTheme)
-                Overlay:Destroy()
-                self:Notify("Theme Applied", "Successfully set interface theme to " .. selectedTheme)
-                if ThemeCallback then
-                    ThemeCallback(selectedTheme)
-                end
-            end)
+            self:SetTheme(selectedTheme)
+            Overlay:Destroy()
+            self:Notify("Theme Applied", "Successfully set interface theme to " .. selectedTheme)
+            if ThemeCallback then
+                ThemeCallback(selectedTheme)
+            end
         end)
 
         CloseBtn.MouseButton1Click:Connect(function()
-            CreateRipple(CloseBtn, Vector2.new(Mouse.X, Mouse.Y))
-            task.delay(0.12, function()
-                Overlay:Destroy()
-            end)
+            Overlay:Destroy()
         end)
     end
 
@@ -1406,22 +1293,7 @@ function Vortex:CreateWindow(options)
                 Tween(btnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Border})
             end)
 
-            btn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(btn, {0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(0, 79, 0, 20)})
-                end
-            end)
-
-            btn.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(btn, {0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {Size = UDim2.new(0, 85, 0, 24)})
-                end
-            end)
-
-            btn.MouseButton1Click:Connect(function()
-                CreateRipple(btn, Vector2.new(Mouse.X, Mouse.Y))
-                task.delay(0.1, callback)
-            end)
+            btn.MouseButton1Click:Connect(callback)
             return btn
         end
 
@@ -1612,7 +1484,6 @@ function Vortex:CreateWindow(options)
         window:RegisterTheme(TabScrollContent, "ScrollBarImageColor3", "Accent")
 
         local function Select()
-            CreateRipple(TabButton, Vector2.new(Mouse.X, Mouse.Y))
             if window.CurrentTab then
                 local prev = window.CurrentTab
                 prev.ContentFrame.Visible = false
@@ -1634,17 +1505,6 @@ function Vortex:CreateWindow(options)
                 if TabIcon then
                     window:UpdateThemeObject(TabIcon)
                 end
-            end)
-            TabIndicator.Visible = true
-            task.spawn(function()
-                task.wait()
-                local relativeY = TabButton.AbsolutePosition.Y - SidebarFrame.AbsolutePosition.Y
-                Tween(TabIndicator, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
-                    Position = UDim2.new(0, 4, 0, relativeY + 6)
-                })
-                Tween(TabIndicator, {0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
-                    Size = UDim2.new(0, 2, 0, 20)
-                })
             end)
         end
 
@@ -2081,20 +1941,7 @@ function Vortex:CreateWindow(options)
                 Tween(BtnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Border})
             end)
 
-            Btn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(Btn, {0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -30, 1, -16)})
-                end
-            end)
-
-            Btn.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    Tween(Btn, {0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -24, 1, -12)})
-                end
-            end)
-
             Btn.MouseButton1Click:Connect(function()
-                CreateRipple(Btn, Vector2.new(Mouse.X, Mouse.Y))
                 if callback then
                     task.spawn(callback)
                 end
