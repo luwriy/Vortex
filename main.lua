@@ -355,7 +355,6 @@ function Vortex:CreateWindow(options)
     MakeDraggable(MainFrame)
 
     local isMinimized = false
-    local lastPosition = MainFrame.Position
 
     MinimizeButton.MouseEnter:Connect(function()
         Tween(MinimizeButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = GetHoverColor(window.CurrentTheme.Container)})
@@ -369,17 +368,7 @@ function Vortex:CreateWindow(options)
 
     MakeButtonDraggable(MinimizeButton, function()
         isMinimized = not isMinimized
-        if isMinimized then
-            lastPosition = MainFrame.Position
-            local targetPos = UDim2.new(lastPosition.X.Scale, lastPosition.X.Offset, 1.5, 0)
-            local t = Tween(MainFrame, {0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {Position = targetPos})
-            t.Completed:Connect(function()
-                MainFrame.Visible = false
-            end)
-        else
-            MainFrame.Visible = true
-            Tween(MainFrame, {0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Position = lastPosition})
-        end
+        MainFrame.Visible = not isMinimized
     end)
 
     window = {
