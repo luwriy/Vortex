@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
@@ -42,6 +43,11 @@ local function CreateShadow(parent)
     return shadow
 end
 
+local function SanitizeName(name)
+    local sanitized = string.gsub(name, "[%s%p]", "_")
+    return sanitized
+end
+
 function Vortex:CreateWindow(options)
     options = options or {}
     local TitleText = options.Title or "Vortex"
@@ -52,6 +58,8 @@ function Vortex:CreateWindow(options)
     local TrashCallback = options.TrashCallback
     local BugCallback = options.BugCallback
     local ThemeCallback = options.ThemeCallback
+
+    local ConfigFolder = "Vortex_" .. SanitizeName(TitleText)
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "VortexGui"
@@ -233,8 +241,6 @@ function Vortex:CreateWindow(options)
         return btn
     end
 
-
-
     local ContentContainer = Instance.new("Frame")
     ContentContainer.Name = "Content"
     ContentContainer.Size = UDim2.new(1, -155, 1, -20)
@@ -333,15 +339,176 @@ function Vortex:CreateWindow(options)
         CurrentTab = nil,
         TooltipFrame = TooltipFrame,
         TooltipLabel = TooltipLabel,
-        AccentColors = { Color3.fromRGB(58, 147, 255), Color3.fromRGB(46, 204, 113), Color3.fromRGB(230, 126, 34), Color3.fromRGB(232, 67, 147), Color3.fromRGB(155, 89, 182) },
+        ThemeObjects = {},
+        Unloaded = false,
+        HUDFrame = nil,
+        HUDConnection = nil,
+        Themes = {
+            Dark = {
+                MainFrame = Color3.fromRGB(18, 20, 29),
+                Container = Color3.fromRGB(22, 25, 36),
+                Element = Color3.fromRGB(28, 32, 45),
+                Border = Color3.fromRGB(40, 46, 64),
+                Text = Color3.fromRGB(240, 240, 240),
+                MutedText = Color3.fromRGB(150, 155, 170),
+                Accent = Color3.fromRGB(58, 147, 255)
+            },
+            Darker = {
+                MainFrame = Color3.fromRGB(12, 14, 20),
+                Container = Color3.fromRGB(16, 18, 26),
+                Element = Color3.fromRGB(22, 25, 36),
+                Border = Color3.fromRGB(33, 38, 54),
+                Text = Color3.fromRGB(230, 230, 230),
+                MutedText = Color3.fromRGB(130, 135, 150),
+                Accent = Color3.fromRGB(72, 138, 182)
+            },
+            Light = {
+                MainFrame = Color3.fromRGB(240, 240, 240),
+                Container = Color3.fromRGB(248, 248, 248),
+                Element = Color3.fromRGB(255, 255, 255),
+                Border = Color3.fromRGB(200, 200, 200),
+                Text = Color3.fromRGB(30, 30, 30),
+                MutedText = Color3.fromRGB(100, 100, 100),
+                Accent = Color3.fromRGB(0, 103, 192)
+            },
+            Rose = {
+                MainFrame = Color3.fromRGB(30, 18, 22),
+                Container = Color3.fromRGB(36, 22, 27),
+                Element = Color3.fromRGB(45, 28, 34),
+                Border = Color3.fromRGB(64, 40, 48),
+                Text = Color3.fromRGB(240, 230, 230),
+                MutedText = Color3.fromRGB(170, 150, 155),
+                Accent = Color3.fromRGB(180, 55, 90)
+            },
+            Amethyst = {
+                MainFrame = Color3.fromRGB(20, 18, 28),
+                Container = Color3.fromRGB(25, 22, 35),
+                Element = Color3.fromRGB(32, 28, 45),
+                Border = Color3.fromRGB(48, 40, 64),
+                Text = Color3.fromRGB(240, 235, 240),
+                MutedText = Color3.fromRGB(165, 150, 170),
+                Accent = Color3.fromRGB(142, 68, 173)
+            },
+            Aqua = {
+                MainFrame = Color3.fromRGB(16, 24, 28),
+                Container = Color3.fromRGB(20, 30, 35),
+                Element = Color3.fromRGB(25, 38, 45),
+                Border = Color3.fromRGB(38, 56, 66),
+                Text = Color3.fromRGB(230, 240, 240),
+                MutedText = Color3.fromRGB(150, 165, 165),
+                Accent = Color3.fromRGB(26, 188, 156)
+            }
+        },
+        AccentColors = {
+            Color3.fromRGB(58, 147, 255),
+            Color3.fromRGB(46, 204, 113),
+            Color3.fromRGB(230, 126, 34),
+            Color3.fromRGB(232, 67, 147),
+            Color3.fromRGB(155, 89, 182)
+        },
         AccentIndex = 1
     }
+
+    window.CurrentTheme = window.Themes.Dark
+    window.ThemeName = "Dark"
+
+    function window:RegisterTheme(object, property, themeKey, condition, fallback)
+        table.insert(self.ThemeObjects, {
+            Object = object,
+            Property = property,
+            Key = themeKey,
+            Condition = condition,
+            Fallback = fallback
+        })
+        if not condition or condition() then
+            object[property] = self.CurrentTheme[themeKey]
+        elseif fallback then
+            if type(fallback) == "string" then
+                object[property] = self.CurrentTheme[fallback]
+            else
+                object[property] = fallback
+            end
+        end
+    end
+
+    function window:UpdateThemeObject(object)
+        for _, item in ipairs(self.ThemeObjects) do
+            if item.Object == object then
+                pcall(function()
+                    if not item.Condition or item.Condition() then
+                        item.Object[item.Property] = self.CurrentTheme[item.Key]
+                    elseif item.Fallback then
+                        if type(item.Fallback) == "string" then
+                            item.Object[item.Property] = self.CurrentTheme[item.Fallback]
+                        else
+                            item.Object[item.Property] = item.Fallback
+                        end
+                    end
+                end)
+            end
+        end
+    end
+
+    function window:SetTheme(themeName)
+        local theme = self.Themes[themeName]
+        if not theme then return end
+        self.CurrentTheme = theme
+        self.ThemeName = themeName
+        
+        for _, item in ipairs(self.ThemeObjects) do
+            pcall(function()
+                if not item.Condition or item.Condition() then
+                    item.Object[item.Property] = theme[item.Key]
+                elseif item.Fallback then
+                    if type(item.Fallback) == "string" then
+                        item.Object[item.Property] = theme[item.Fallback]
+                    else
+                        item.Object[item.Property] = item.Fallback
+                    end
+                end
+            end)
+        end
+        
+        for _, opt in pairs(Vortex.Options) do
+            if opt.Type == "Toggle" then
+                opt:UpdateVisual(false)
+            elseif opt.Type == "Slider" then
+                opt.Fill.BackgroundColor3 = theme.Accent
+            end
+        end
+        
+        for _, t in ipairs(self.Tabs) do
+            self:UpdateThemeObject(t.Button)
+            self:UpdateThemeObject(t.Stroke)
+            self:UpdateThemeObject(t.Label)
+            if t.Button:FindFirstChildOfClass("ImageLabel") then
+                self:UpdateThemeObject(t.Button:FindFirstChildOfClass("ImageLabel"))
+            end
+        end
+    end
+
+    window:RegisterTheme(MainFrame, "BackgroundColor3", "MainFrame")
+    window:RegisterTheme(MainStroke, "Color", "Border")
+    window:RegisterTheme(SidebarFrame, "BackgroundColor3", "Container")
+    window:RegisterTheme(SidebarStroke, "Color", "Border")
+    window:RegisterTheme(ContentContainer, "BackgroundColor3", "Container")
+    window:RegisterTheme(ContentStroke, "Color", "Border")
+    window:RegisterTheme(SearchContainer, "BackgroundColor3", "Element")
+    window:RegisterTheme(SearchStroke, "Color", "Border")
+    window:RegisterTheme(SearchBox, "TextColor3", "Text")
+    window:RegisterTheme(SearchBox, "PlaceholderColor3", "MutedText")
+    window:RegisterTheme(MinimizeButton, "BackgroundColor3", "Container")
+    window:RegisterTheme(MinimizeStroke, "Color", "Border")
+    window:RegisterTheme(MinimizeButton, "TextColor3", "Text")
+    window:RegisterTheme(TooltipFrame, "BackgroundColor3", "MainFrame")
+    window:RegisterTheme(TooltipStroke, "Color", "Accent")
+    window:RegisterTheme(TooltipLabel, "TextColor3", "Text")
 
     function window:Notify(titleText, contentText)
         local NotifyFrame = Instance.new("Frame")
         NotifyFrame.Size = UDim2.new(0, 220, 0, 55)
         NotifyFrame.Position = UDim2.new(1, 30, 1, -75)
-        NotifyFrame.BackgroundColor3 = Color3.fromRGB(22, 25, 36)
+        NotifyFrame.BackgroundColor3 = self.CurrentTheme.Container
         NotifyFrame.BorderSizePixel = 0
         NotifyFrame.Parent = ScreenGui
         
@@ -350,7 +517,7 @@ function Vortex:CreateWindow(options)
         Corner.Parent = NotifyFrame
         
         local Stroke = Instance.new("UIStroke")
-        Stroke.Color = self.AccentColors[self.AccentIndex]
+        Stroke.Color = self.CurrentTheme.Accent
         Stroke.Thickness = 1
         Stroke.Parent = NotifyFrame
         
@@ -362,7 +529,7 @@ function Vortex:CreateWindow(options)
         Title.BackgroundTransparency = 1
         Title.Font = Enum.Font.GothamBold
         Title.Text = titleText
-        Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+        Title.TextColor3 = self.CurrentTheme.Text
         Title.TextSize = 12
         Title.TextXAlignment = Enum.TextXAlignment.Left
         Title.Parent = NotifyFrame
@@ -373,11 +540,16 @@ function Vortex:CreateWindow(options)
         Content.BackgroundTransparency = 1
         Content.Font = Enum.Font.Gotham
         Content.Text = contentText
-        Content.TextColor3 = Color3.fromRGB(170, 175, 190)
+        Content.TextColor3 = self.CurrentTheme.MutedText
         Content.TextSize = 11
         Content.TextXAlignment = Enum.TextXAlignment.Left
         Content.Parent = NotifyFrame
         
+        window:RegisterTheme(NotifyFrame, "BackgroundColor3", "Container")
+        window:RegisterTheme(Stroke, "Color", "Accent")
+        window:RegisterTheme(Title, "TextColor3", "Text")
+        window:RegisterTheme(Content, "TextColor3", "MutedText")
+
         Tween(NotifyFrame, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Position = UDim2.new(1, -235, 1, -75)})
         task.delay(3, function()
             local t = Tween(NotifyFrame, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {Position = UDim2.new(1, 30, 1, -75)})
@@ -399,7 +571,7 @@ function Vortex:CreateWindow(options)
         local DialogFrame = Instance.new("Frame")
         DialogFrame.Size = UDim2.new(0, 280, 0, 130)
         DialogFrame.Position = UDim2.new(0.5, -140, 0.5, -65)
-        DialogFrame.BackgroundColor3 = Color3.fromRGB(20, 22, 30)
+        DialogFrame.BackgroundColor3 = self.CurrentTheme.MainFrame
         DialogFrame.BorderSizePixel = 0
         DialogFrame.Parent = Overlay
         
@@ -408,7 +580,7 @@ function Vortex:CreateWindow(options)
         Corner.Parent = DialogFrame
         
         local Stroke = Instance.new("UIStroke")
-        Stroke.Color = self.AccentColors[self.AccentIndex]
+        Stroke.Color = self.CurrentTheme.Accent
         Stroke.Thickness = 1.2
         Stroke.Parent = DialogFrame
         
@@ -420,7 +592,7 @@ function Vortex:CreateWindow(options)
         Title.BackgroundTransparency = 1
         Title.Font = Enum.Font.GothamBold
         Title.Text = titleText
-        Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+        Title.TextColor3 = self.CurrentTheme.Text
         Title.TextSize = 14
         Title.TextXAlignment = Enum.TextXAlignment.Center
         Title.Parent = DialogFrame
@@ -431,7 +603,7 @@ function Vortex:CreateWindow(options)
         Content.BackgroundTransparency = 1
         Content.Font = Enum.Font.Gotham
         Content.Text = contentText
-        Content.TextColor3 = Color3.fromRGB(170, 175, 190)
+        Content.TextColor3 = self.CurrentTheme.MutedText
         Content.TextSize = 12
         Content.TextWrapped = true
         Content.TextXAlignment = Enum.TextXAlignment.Center
@@ -440,11 +612,11 @@ function Vortex:CreateWindow(options)
         local YesBtn = Instance.new("TextButton")
         YesBtn.Size = UDim2.new(0, 100, 0, 28)
         YesBtn.Position = UDim2.new(0.5, -110, 1, -38)
-        YesBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+        YesBtn.BackgroundColor3 = self.CurrentTheme.Container
         YesBtn.BorderSizePixel = 0
         YesBtn.Font = Enum.Font.GothamMedium
         YesBtn.Text = "Yes"
-        YesBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+        YesBtn.TextColor3 = self.CurrentTheme.Text
         YesBtn.TextSize = 12
         YesBtn.Parent = DialogFrame
         
@@ -453,18 +625,18 @@ function Vortex:CreateWindow(options)
         YesCorner.Parent = YesBtn
         
         local YesStroke = Instance.new("UIStroke")
-        YesStroke.Color = Color3.fromRGB(45, 52, 71)
+        YesStroke.Color = self.CurrentTheme.Border
         YesStroke.Thickness = 1
         YesStroke.Parent = YesBtn
         
         local NoBtn = Instance.new("TextButton")
         NoBtn.Size = UDim2.new(0, 100, 0, 28)
         NoBtn.Position = UDim2.new(0.5, 10, 1, -38)
-        NoBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+        NoBtn.BackgroundColor3 = self.CurrentTheme.Container
         NoBtn.BorderSizePixel = 0
         NoBtn.Font = Enum.Font.GothamMedium
         NoBtn.Text = "No"
-        NoBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+        NoBtn.TextColor3 = self.CurrentTheme.Text
         NoBtn.TextSize = 12
         NoBtn.Parent = DialogFrame
         
@@ -473,18 +645,29 @@ function Vortex:CreateWindow(options)
         NoCorner.Parent = NoBtn
         
         local NoStroke = Instance.new("UIStroke")
-        NoStroke.Color = Color3.fromRGB(45, 52, 71)
+        NoStroke.Color = self.CurrentTheme.Border
         NoStroke.Thickness = 1
         NoStroke.Parent = NoBtn
-        
+
+        window:RegisterTheme(DialogFrame, "BackgroundColor3", "MainFrame")
+        window:RegisterTheme(Stroke, "Color", "Accent")
+        window:RegisterTheme(Title, "TextColor3", "Text")
+        window:RegisterTheme(Content, "TextColor3", "MutedText")
+        window:RegisterTheme(YesBtn, "BackgroundColor3", "Container")
+        window:RegisterTheme(YesBtn, "TextColor3", "Text")
+        window:RegisterTheme(YesStroke, "Color", "Border")
+        window:RegisterTheme(NoBtn, "BackgroundColor3", "Container")
+        window:RegisterTheme(NoBtn, "TextColor3", "Text")
+        window:RegisterTheme(NoStroke, "Color", "Border")
+
         local function ButtonHover(btn, stroke)
             btn.MouseEnter:Connect(function()
                 Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(40, 45, 60)})
-                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.AccentColors[self.AccentIndex]})
+                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Accent})
             end)
             btn.MouseLeave:Connect(function()
-                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(35, 40, 55)})
-                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(45, 52, 71)})
+                Tween(btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = self.CurrentTheme.Container})
+                Tween(stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = self.CurrentTheme.Border})
             end)
         end
         ButtonHover(YesBtn, YesStroke)
@@ -500,91 +683,634 @@ function Vortex:CreateWindow(options)
         end)
     end
 
-    local function UpdateAccentColors()
-        local color = window.AccentColors[window.AccentIndex]
-        
-        for _, t in ipairs(window.Tabs) do
-            if window.CurrentTab == t then
-                t.Stroke.Color = color
-            end
+    function window:Unload()
+        if self.HUDConnection then
+            self.HUDConnection:Disconnect()
         end
-        
-        for _, opt in pairs(Vortex.Options) do
-            if opt.Type == "Toggle" then
-                opt.UpdateVisual(false)
-            elseif opt.Type == "Slider" then
-                opt.Fill.BackgroundColor3 = color
-            end
+        if self.HUDFrame then
+            self.HUDFrame:Destroy()
         end
-        
-        TooltipStroke.Color = color
-        MinimizeStroke.Color = color
-    end
-
-    local function OpenConfigFolder()
-        local opened = false
-        if openfolder then
-            local success = pcall(openfolder)
-            if success then
-                opened = true
-            end
-        end
-        if opened then
-            window:Notify("Folder Opened", "Opened executor workspace folder.")
-        else
-            window:Notify("Error", "Your executor does not support openfolder().")
-        end
-        if FolderCallback then
-            FolderCallback(opened)
+        self.Unloaded = true
+        ScreenGui:Destroy()
+        print("[Vortex] Unloaded successfully.")
+        if TrashCallback then
+            TrashCallback()
         end
     end
 
-    local function PromptReset()
-        window:Dialog("Reset Settings", "Are you sure you want to reset all options to defaults?", function()
-            for _, opt in pairs(Vortex.Options) do
-                if opt.DefaultValue ~= nil then
-                    opt:SetValue(opt.DefaultValue)
-                end
+    function window:ToggleHUD()
+        if self.HUDFrame then
+            self.HUDFrame.Visible = not self.HUDFrame.Visible
+            if self.HUDFrame.Visible then
+                self:Notify("HUD Enabled", "Developer FPS & Ping HUD overlay enabled.")
+            else
+                self:Notify("HUD Disabled", "Developer FPS & Ping HUD overlay disabled.")
             end
-            window:Notify("Settings Reset", "All options have been reset to defaults.")
-            if TrashCallback then
-                TrashCallback()
+            return
+        end
+        
+        local HUDFrame = Instance.new("Frame")
+        HUDFrame.Size = UDim2.new(0, 150, 0, 28)
+        HUDFrame.Position = UDim2.new(0.5, -75, 0, 10)
+        HUDFrame.BackgroundColor3 = self.CurrentTheme.MainFrame
+        HUDFrame.BorderSizePixel = 0
+        HUDFrame.ZIndex = 200
+        HUDFrame.Parent = ScreenGui
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 6)
+        Corner.Parent = HUDFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = self.CurrentTheme.Accent
+        Stroke.Thickness = 1
+        Stroke.Parent = HUDFrame
+        
+        CreateShadow(HUDFrame)
+        
+        local HUDLabel = Instance.new("TextLabel")
+        HUDLabel.Size = UDim2.new(1, 0, 1, 0)
+        HUDLabel.BackgroundTransparency = 1
+        HUDLabel.Font = Enum.Font.GothamMedium
+        HUDLabel.Text = "FPS: -- | Ping: --ms"
+        HUDLabel.TextColor3 = self.CurrentTheme.Text
+        HUDLabel.TextSize = 11
+        HUDLabel.TextXAlignment = Enum.TextXAlignment.Center
+        HUDLabel.Parent = HUDFrame
+
+        self:RegisterTheme(HUDFrame, "BackgroundColor3", "MainFrame")
+        self:RegisterTheme(Stroke, "Color", "Accent")
+        self:RegisterTheme(HUDLabel, "TextColor3", "Text")
+
+        local lastUpdate = tick()
+        local frameCount = 0
+        local fps = 60
+
+        local hudConnection = RunService.RenderStepped:Connect(function()
+            frameCount = frameCount + 1
+            local now = tick()
+            if now - lastUpdate >= 0.5 then
+                fps = math.floor(frameCount / (now - lastUpdate))
+                frameCount = 0
+                lastUpdate = now
+                local ping = math.floor(stats().Network.ServerPing * 1000)
+                HUDLabel.Text = "FPS: " .. tostring(fps) .. " | Ping: " .. tostring(ping) .. "ms"
             end
         end)
-    end
-
-    local function ToggleConsole()
-        local StarterGui = game:GetService("StarterGui")
-        local success, visible = pcall(function()
-            return StarterGui:GetCore("DevConsoleVisible")
-        end)
-        if success then
-            StarterGui:SetCore("DevConsoleVisible", not visible)
-            window:Notify("Console Toggled", "Roblox developer console toggled.")
-        else
-            window:Notify("Error", "Failed to access Developer Console.")
-        end
+        
+        self.HUDFrame = HUDFrame
+        self.HUDConnection = hudConnection
+        self:Notify("HUD Enabled", "Developer FPS & Ping HUD overlay enabled.")
         if BugCallback then
             BugCallback()
         end
     end
 
-    local function CycleAccent()
-        window.AccentIndex = window.AccentIndex + 1
-        if window.AccentIndex > #window.AccentColors then
-            window.AccentIndex = 1
+    function window:OpenThemeDialog()
+        local Overlay = Instance.new("TextButton")
+        Overlay.Size = UDim2.new(1, 0, 1, 0)
+        Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        Overlay.BackgroundTransparency = 0.5
+        Overlay.Text = ""
+        Overlay.AutoButtonColor = false
+        Overlay.Parent = MainFrame
+        
+        local DialogFrame = Instance.new("Frame")
+        DialogFrame.Size = UDim2.new(0, 300, 0, 180)
+        DialogFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
+        DialogFrame.BackgroundColor3 = self.CurrentTheme.MainFrame
+        DialogFrame.BorderSizePixel = 0
+        DialogFrame.ClipsDescendants = true
+        DialogFrame.Parent = Overlay
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 8)
+        Corner.Parent = DialogFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = self.CurrentTheme.Accent
+        Stroke.Thickness = 1.2
+        Stroke.Parent = DialogFrame
+        
+        CreateShadow(DialogFrame)
+        
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, -24, 0, 30)
+        Title.Position = UDim2.new(0, 12, 0, 10)
+        Title.BackgroundTransparency = 1
+        Title.Font = Enum.Font.GothamBold
+        Title.Text = "Theme Manager"
+        Title.TextColor3 = self.CurrentTheme.Text
+        Title.TextSize = 14
+        Title.TextXAlignment = Enum.TextXAlignment.Center
+        Title.Parent = DialogFrame
+
+        local DropdownBtn = Instance.new("TextButton")
+        DropdownBtn.Size = UDim2.new(1, -24, 0, 32)
+        DropdownBtn.Position = UDim2.new(0, 12, 0, 50)
+        DropdownBtn.BackgroundColor3 = self.CurrentTheme.Container
+        DropdownBtn.BorderSizePixel = 0
+        DropdownBtn.Font = Enum.Font.GothamMedium
+        DropdownBtn.Text = "Current Theme: " .. self.ThemeName
+        DropdownBtn.TextColor3 = self.CurrentTheme.Text
+        DropdownBtn.TextSize = 12
+        DropdownBtn.Parent = DialogFrame
+
+        local DropdownCorner = Instance.new("UICorner")
+        DropdownCorner.CornerRadius = UDim.new(0, 5)
+        DropdownCorner.Parent = DropdownBtn
+
+        local DropdownStroke = Instance.new("UIStroke")
+        DropdownStroke.Color = self.CurrentTheme.Border
+        DropdownStroke.Thickness = 1
+        DropdownStroke.Parent = DropdownBtn
+
+        local OptionsFrame = Instance.new("ScrollingFrame")
+        OptionsFrame.Size = UDim2.new(1, -24, 0, 0)
+        OptionsFrame.Position = UDim2.new(0, 12, 0, 86)
+        OptionsFrame.BackgroundColor3 = self.CurrentTheme.Container
+        OptionsFrame.BorderSizePixel = 0
+        OptionsFrame.ScrollBarThickness = 0
+        OptionsFrame.Visible = false
+        OptionsFrame.ZIndex = 50
+        OptionsFrame.Parent = DialogFrame
+
+        local OptionsCorner = Instance.new("UICorner")
+        OptionsCorner.CornerRadius = UDim.new(0, 5)
+        OptionsCorner.Parent = OptionsFrame
+
+        local OptionsStroke = Instance.new("UIStroke")
+        OptionsStroke.Color = self.CurrentTheme.Border
+        OptionsStroke.Thickness = 1
+        OptionsStroke.Parent = OptionsFrame
+
+        local OptionsLayout = Instance.new("UIListLayout")
+        OptionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        OptionsLayout.Padding = UDim.new(0, 4)
+        OptionsLayout.Parent = OptionsFrame
+
+        local selectedTheme = self.ThemeName
+
+        self:RegisterTheme(DialogFrame, "BackgroundColor3", "MainFrame")
+        self:RegisterTheme(Stroke, "Color", "Accent")
+        self:RegisterTheme(Title, "TextColor3", "Text")
+        self:RegisterTheme(DropdownBtn, "BackgroundColor3", "Container")
+        self:RegisterTheme(DropdownBtn, "TextColor3", "Text")
+        self:RegisterTheme(DropdownStroke, "Color", "Border")
+        self:RegisterTheme(OptionsFrame, "BackgroundColor3", "Container")
+        self:RegisterTheme(OptionsStroke, "Color", "Border")
+
+        local open = false
+        local function ToggleOptions()
+            open = not open
+            if open then
+                OptionsFrame.Visible = true
+                Tween(OptionsFrame, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -24, 0, 75)})
+            else
+                local t = Tween(OptionsFrame, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -24, 0, 0)})
+                t.Completed:Connect(function()
+                    OptionsFrame.Visible = false
+                end)
+            end
         end
-        UpdateAccentColors()
-        window:Notify("Accent Updated", "Theme accent color has been changed.")
-        if ThemeCallback then
-            ThemeCallback(window.AccentColors[window.AccentIndex])
+        DropdownBtn.MouseButton1Click:Connect(ToggleOptions)
+
+        local themeNames = {"Dark", "Darker", "Light", "Rose", "Amethyst", "Aqua"}
+        for _, tName in ipairs(themeNames) do
+            local OptBtn = Instance.new("TextButton")
+            OptBtn.Size = UDim2.new(1, 0, 0, 24)
+            OptBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+            OptBtn.BorderSizePixel = 0
+            OptBtn.Font = Enum.Font.GothamMedium
+            OptBtn.Text = tName
+            OptBtn.TextColor3 = Color3.fromRGB(200, 205, 220)
+            OptBtn.TextSize = 11
+            OptBtn.Parent = OptionsFrame
+
+            local OptCorner = Instance.new("UICorner")
+            OptCorner.CornerRadius = UDim.new(0, 4)
+            OptCorner.Parent = OptBtn
+
+            OptBtn.MouseButton1Click:Connect(function()
+                selectedTheme = tName
+                DropdownBtn.Text = "Theme: " .. tName
+                ToggleOptions()
+            end)
+        end
+
+        local ApplyBtn = Instance.new("TextButton")
+        ApplyBtn.Size = UDim2.new(0, 110, 0, 30)
+        ApplyBtn.Position = UDim2.new(0.5, -120, 1, -40)
+        ApplyBtn.BackgroundColor3 = self.CurrentTheme.Container
+        ApplyBtn.BorderSizePixel = 0
+        ApplyBtn.Font = Enum.Font.GothamMedium
+        ApplyBtn.Text = "Apply"
+        ApplyBtn.TextColor3 = self.CurrentTheme.Text
+        ApplyBtn.TextSize = 12
+        ApplyBtn.Parent = DialogFrame
+
+        local ApplyCorner = Instance.new("UICorner")
+        ApplyCorner.CornerRadius = UDim.new(0, 5)
+        ApplyCorner.Parent = ApplyBtn
+
+        local ApplyStroke = Instance.new("UIStroke")
+        ApplyStroke.Color = self.CurrentTheme.Border
+        ApplyStroke.Thickness = 1
+        ApplyStroke.Parent = ApplyBtn
+
+        local CloseBtn = Instance.new("TextButton")
+        CloseBtn.Size = UDim2.new(0, 110, 0, 30)
+        CloseBtn.Position = UDim2.new(0.5, 10, 1, -40)
+        CloseBtn.BackgroundColor3 = self.CurrentTheme.Container
+        CloseBtn.BorderSizePixel = 0
+        CloseBtn.Font = Enum.Font.GothamMedium
+        CloseBtn.Text = "Close"
+        CloseBtn.TextColor3 = self.CurrentTheme.Text
+        CloseBtn.TextSize = 12
+        CloseBtn.Parent = DialogFrame
+
+        local CloseCorner = Instance.new("UICorner")
+        CloseCorner.CornerRadius = UDim.new(0, 5)
+        CloseCorner.Parent = CloseBtn
+
+        local CloseStroke = Instance.new("UIStroke")
+        CloseStroke.Color = self.CurrentTheme.Border
+        CloseStroke.Thickness = 1
+        CloseStroke.Parent = CloseBtn
+
+        self:RegisterTheme(ApplyBtn, "BackgroundColor3", "Container")
+        self:RegisterTheme(ApplyBtn, "TextColor3", "Text")
+        self:RegisterTheme(ApplyStroke, "Color", "Border")
+        self:RegisterTheme(CloseBtn, "BackgroundColor3", "Container")
+        self:RegisterTheme(CloseBtn, "TextColor3", "Text")
+        self:RegisterTheme(CloseStroke, "Color", "Border")
+
+        ApplyBtn.MouseButton1Click:Connect(function()
+            self:SetTheme(selectedTheme)
+            Overlay:Destroy()
+            self:Notify("Theme Applied", "Successfully set interface theme to " .. selectedTheme)
+            if ThemeCallback then
+                ThemeCallback(selectedTheme)
+            end
+        end)
+
+        CloseBtn.MouseButton1Click:Connect(function()
+            Overlay:Destroy()
+        end)
+    end
+
+    function window:OpenConfigDialog()
+        local Overlay = Instance.new("TextButton")
+        Overlay.Size = UDim2.new(1, 0, 1, 0)
+        Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        Overlay.BackgroundTransparency = 0.5
+        Overlay.Text = ""
+        Overlay.AutoButtonColor = false
+        Overlay.Parent = MainFrame
+        
+        local DialogFrame = Instance.new("Frame")
+        DialogFrame.Size = UDim2.new(0, 310, 0, 220)
+        DialogFrame.Position = UDim2.new(0.5, -155, 0.5, -110)
+        DialogFrame.BackgroundColor3 = self.CurrentTheme.MainFrame
+        DialogFrame.BorderSizePixel = 0
+        DialogFrame.ClipsDescendants = true
+        DialogFrame.Parent = Overlay
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 8)
+        Corner.Parent = DialogFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = self.CurrentTheme.Accent
+        Stroke.Thickness = 1.2
+        Stroke.Parent = DialogFrame
+        
+        CreateShadow(DialogFrame)
+        
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, -24, 0, 30)
+        Title.Position = UDim2.new(0, 12, 0, 10)
+        Title.BackgroundTransparency = 1
+        Title.Font = Enum.Font.GothamBold
+        Title.Text = "Configuration Manager"
+        Title.TextColor3 = self.CurrentTheme.Text
+        Title.TextSize = 14
+        Title.TextXAlignment = Enum.TextXAlignment.Center
+        Title.Parent = DialogFrame
+
+        local InputFrame = Instance.new("Frame")
+        InputFrame.Size = UDim2.new(1, -24, 0, 28)
+        InputFrame.Position = UDim2.new(0, 12, 0, 46)
+        InputFrame.BackgroundColor3 = self.CurrentTheme.Container
+        InputFrame.BorderSizePixel = 0
+        InputFrame.Parent = DialogFrame
+
+        local InputCorner = Instance.new("UICorner")
+        InputCorner.CornerRadius = UDim.new(0, 5)
+        InputCorner.Parent = InputFrame
+
+        local InputStroke = Instance.new("UIStroke")
+        InputStroke.Color = self.CurrentTheme.Border
+        InputStroke.Thickness = 1
+        InputStroke.Parent = InputFrame
+
+        local ConfigInput = Instance.new("TextBox")
+        ConfigInput.Size = UDim2.new(1, -12, 1, 0)
+        ConfigInput.Position = UDim2.new(0, 6, 0, 0)
+        ConfigInput.BackgroundTransparency = 1
+        ConfigInput.Font = Enum.Font.GothamMedium
+        ConfigInput.Text = ""
+        ConfigInput.PlaceholderText = "New Config Name..."
+        ConfigInput.PlaceholderColor3 = self.CurrentTheme.MutedText
+        ConfigInput.TextColor3 = self.CurrentTheme.Text
+        ConfigInput.TextSize = 12
+        ConfigInput.TextXAlignment = Enum.TextXAlignment.Left
+        ConfigInput.Parent = InputFrame
+
+        local DropdownBtn = Instance.new("TextButton")
+        DropdownBtn.Size = UDim2.new(1, -24, 0, 28)
+        DropdownBtn.Position = UDim2.new(0, 12, 0, 80)
+        DropdownBtn.BackgroundColor3 = self.CurrentTheme.Container
+        DropdownBtn.BorderSizePixel = 0
+        DropdownBtn.Font = Enum.Font.GothamMedium
+        DropdownBtn.Text = "Select Configuration..."
+        DropdownBtn.TextColor3 = self.CurrentTheme.Text
+        DropdownBtn.TextSize = 12
+        DropdownBtn.Parent = DialogFrame
+
+        local DropdownCorner = Instance.new("UICorner")
+        DropdownCorner.CornerRadius = UDim.new(0, 5)
+        DropdownCorner.Parent = DropdownBtn
+
+        local DropdownStroke = Instance.new("UIStroke")
+        DropdownStroke.Color = self.CurrentTheme.Border
+        DropdownStroke.Thickness = 1
+        DropdownStroke.Parent = DropdownBtn
+
+        local OptionsFrame = Instance.new("ScrollingFrame")
+        OptionsFrame.Size = UDim2.new(1, -24, 0, 0)
+        OptionsFrame.Position = UDim2.new(0, 12, 0, 110)
+        OptionsFrame.BackgroundColor3 = self.CurrentTheme.Container
+        OptionsFrame.BorderSizePixel = 0
+        OptionsFrame.ScrollBarThickness = 0
+        OptionsFrame.Visible = false
+        OptionsFrame.ZIndex = 50
+        OptionsFrame.Parent = DialogFrame
+
+        local OptionsCorner = Instance.new("UICorner")
+        OptionsCorner.CornerRadius = UDim.new(0, 5)
+        OptionsCorner.Parent = OptionsFrame
+
+        local OptionsStroke = Instance.new("UIStroke")
+        OptionsStroke.Color = self.CurrentTheme.Border
+        OptionsStroke.Thickness = 1
+        OptionsStroke.Parent = OptionsFrame
+
+        local OptionsLayout = Instance.new("UIListLayout")
+        OptionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        OptionsLayout.Padding = UDim.new(0, 4)
+        OptionsLayout.Parent = OptionsFrame
+
+        local selectedConfig = nil
+
+        local function RefreshConfigs()
+            local list = {}
+            if isfolder(ConfigFolder .. "/settings") then
+                local files = listfiles(ConfigFolder .. "/settings")
+                for _, file in ipairs(files) do
+                    if string.sub(file, -5) == ".json" then
+                        local name = string.gsub(file, "^.*[/\\]", "")
+                        name = string.gsub(name, "%.json$", "")
+                        table.insert(list, name)
+                    end
+                end
+            end
+            return list
+        end
+
+        local open = false
+        local function PopulateList()
+            for _, child in ipairs(OptionsFrame:GetChildren()) do
+                if child:IsA("TextButton") then child:Destroy() end
+            end
+            local list = RefreshConfigs()
+            for _, cName in ipairs(list) do
+                local OptBtn = Instance.new("TextButton")
+                OptBtn.Size = UDim2.new(1, 0, 0, 24)
+                OptBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+                OptBtn.BorderSizePixel = 0
+                OptBtn.Font = Enum.Font.GothamMedium
+                OptBtn.Text = cName
+                OptBtn.TextColor3 = Color3.fromRGB(200, 205, 220)
+                OptBtn.TextSize = 11
+                OptBtn.Parent = OptionsFrame
+
+                local OptCorner = Instance.new("UICorner")
+                OptCorner.CornerRadius = UDim.new(0, 4)
+                OptCorner.Parent = OptBtn
+
+                OptBtn.MouseButton1Click:Connect(function()
+                    selectedConfig = cName
+                    DropdownBtn.Text = "Config: " .. cName
+                    open = false
+                    local t = Tween(OptionsFrame, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -24, 0, 0)})
+                    t.Completed:Connect(function()
+                        OptionsFrame.Visible = false
+                    end)
+                end)
+            end
+        end
+
+        local function ToggleOptions()
+            open = not open
+            if open then
+                PopulateList()
+                OptionsFrame.Visible = true
+                Tween(OptionsFrame, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -24, 0, 60)})
+            else
+                local t = Tween(OptionsFrame, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1, -24, 0, 0)})
+                t.Completed:Connect(function()
+                    OptionsFrame.Visible = false
+                end)
+            end
+        end
+        DropdownBtn.MouseButton1Click:Connect(ToggleOptions)
+
+        local function SaveConfig(name)
+            if not name or name == "" then return end
+            if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
+            if not isfolder(ConfigFolder .. "/settings") then makefolder(ConfigFolder .. "/settings") end
+            
+            local data = { objects = {} }
+            for idx, opt in pairs(Vortex.Options) do
+                table.insert(data.objects, { idx = idx, type = opt.Type, value = opt.Value })
+            end
+            local success, encoded = pcall(game:GetService("HttpService").JSONEncode, game:GetService("HttpService"), data)
+            if success then
+                writefile(ConfigFolder .. "/settings/" .. name .. ".json", encoded)
+                window:Notify("Config Saved", "Successfully saved configuration: " .. name)
+            end
+        end
+
+        local function LoadConfig(name)
+            if not name then return end
+            local file = ConfigFolder .. "/settings/" .. name .. ".json"
+            if isfile(file) then
+                local success, decoded = pcall(game:GetService("HttpService").JSONDecode, game:GetService("HttpService"), readfile(file))
+                if success then
+                    for _, item in ipairs(decoded.objects) do
+                        local opt = Vortex.Options[item.idx]
+                        if opt then
+                            opt:SetValue(item.value)
+                        end
+                    end
+                    window:Notify("Config Loaded", "Successfully loaded configuration: " .. name)
+                end
+            end
+        end
+
+        local function DeleteConfig(name)
+            if not name then return end
+            local file = ConfigFolder .. "/settings/" .. name .. ".json"
+            if isfile(file) then
+                delfile(file)
+                window:Notify("Config Deleted", "Deleted configuration: " .. name)
+                selectedConfig = nil
+                DropdownBtn.Text = "Select Configuration..."
+            end
+        end
+
+        local function CreateBtn(text, pos, callback)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0, 85, 0, 24)
+            btn.Position = pos
+            btn.BackgroundColor3 = self.CurrentTheme.Container
+            btn.BorderSizePixel = 0
+            btn.Font = Enum.Font.GothamMedium
+            btn.Text = text
+            btn.TextColor3 = self.CurrentTheme.Text
+            btn.TextSize = 11
+            btn.Parent = DialogFrame
+
+            local btnCorner = Instance.new("UICorner")
+            btnCorner.CornerRadius = UDim.new(0, 4)
+            btnCorner.Parent = btn
+
+            local btnStroke = Instance.new("UIStroke")
+            btnStroke.Color = self.CurrentTheme.Border
+            btnStroke.Thickness = 1
+            btnStroke.Parent = btn
+
+            window:RegisterTheme(btn, "BackgroundColor3", "Container")
+            window:RegisterTheme(btn, "TextColor3", "Text")
+            window:RegisterTheme(btnStroke, "Color", "Border")
+
+            btn.MouseButton1Click:Connect(callback)
+            return btn
+        end
+
+        CreateBtn("Save/New", UDim2.new(0, 12, 1, -70), function()
+            local name = ConfigInput.Text
+            if name and name ~= "" then
+                SaveConfig(name)
+                ConfigInput.Text = ""
+                selectedConfig = name
+                DropdownBtn.Text = "Config: " .. name
+            else
+                window:Notify("Error", "Please enter a valid configuration name.")
+            end
+        end)
+
+        CreateBtn("Load", UDim2.new(0, 110, 1, -70), function()
+            if selectedConfig then
+                LoadConfig(selectedConfig)
+                Overlay:Destroy()
+            else
+                window:Notify("Error", "Please select a configuration.")
+            end
+        end)
+
+        CreateBtn("Overwrite", UDim2.new(0, 208, 1, -70), function()
+            if selectedConfig then
+                SaveConfig(selectedConfig)
+            else
+                window:Notify("Error", "Please select a configuration to overwrite.")
+            end
+        end)
+
+        CreateBtn("Autoload", UDim2.new(0, 12, 1, -38), function()
+            if selectedConfig then
+                if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
+                if not isfolder(ConfigFolder .. "/settings") then makefolder(ConfigFolder .. "/settings") end
+                writefile(ConfigFolder .. "/settings/autoload.txt", selectedConfig)
+                window:Notify("Autoload Set", "Set " .. selectedConfig .. " as default config.")
+            else
+                window:Notify("Error", "Please select a configuration.")
+            end
+        end)
+
+        CreateBtn("Delete", UDim2.new(0, 110, 1, -38), function()
+            if selectedConfig then
+                DeleteConfig(selectedConfig)
+            else
+                window:Notify("Error", "Please select a configuration.")
+            end
+        end)
+
+        CreateBtn("Close", UDim2.new(0, 208, 1, -38), function()
+            Overlay:Destroy()
+        end)
+
+        self:RegisterTheme(DialogFrame, "BackgroundColor3", "MainFrame")
+        self:RegisterTheme(Stroke, "Color", "Accent")
+        self:RegisterTheme(Title, "TextColor3", "Text")
+        self:RegisterTheme(InputFrame, "BackgroundColor3", "Container")
+        self:RegisterTheme(InputStroke, "Color", "Border")
+        self:RegisterTheme(ConfigInput, "TextColor3", "Text")
+        self:RegisterTheme(DropdownBtn, "BackgroundColor3", "Container")
+        self:RegisterTheme(DropdownBtn, "TextColor3", "Text")
+        self:RegisterTheme(DropdownStroke, "Color", "Border")
+        self:RegisterTheme(OptionsFrame, "BackgroundColor3", "Container")
+        self:RegisterTheme(OptionsStroke, "Color", "Border")
+
+        if FolderCallback then
+            FolderCallback()
         end
     end
 
-    AddFooterButton(Color3.fromRGB(255, 215, 0), "rbxassetid://10723387563", function() OpenConfigFolder() end)
-    AddFooterButton(Color3.fromRGB(255, 75, 75), "rbxassetid://10747362393", function() PromptReset() end)
-    AddFooterButton(Color3.fromRGB(255, 90, 120), "rbxassetid://10709782845", function() ToggleConsole() end)
-    AddFooterButton(Color3.fromRGB(90, 150, 255), "rbxassetid://10709782758", function() CycleAccent() end)
+    local function TryLoadAutoload()
+        if isfolder(ConfigFolder) and isfolder(ConfigFolder .. "/settings") then
+            local file = ConfigFolder .. "/settings/autoload.txt"
+            if isfile(file) then
+                local name = readfile(file)
+                local configFile = ConfigFolder .. "/settings/" .. name .. ".json"
+                if isfile(configFile) then
+                    task.delay(0.5, function()
+                        local success, decoded = pcall(game:GetService("HttpService").JSONDecode, game:GetService("HttpService"), readfile(configFile))
+                        if success then
+                            for _, item in ipairs(decoded.objects) do
+                                local opt = Vortex.Options[item.idx]
+                                if opt then
+                                    opt:SetValue(item.value)
+                                end
+                            end
+                            window:Notify("Autoloaded Config", "Automatically loaded " .. name .. " settings.")
+                        end
+                    end)
+                end
+            end
+        end
+    end
+    task.spawn(TryLoadAutoload)
+
+    AddFooterButton(Color3.fromRGB(255, 215, 0), "rbxassetid://10723387563", function() window:OpenConfigDialog() end)
+    AddFooterButton(Color3.fromRGB(255, 75, 75), "rbxassetid://10747362393", function()
+        window:Dialog("Unload Interface", "Are you sure you want to completely unload and close this interface?", function()
+            window:Unload()
+        end)
+    end)
+    AddFooterButton(Color3.fromRGB(255, 90, 120), "rbxassetid://10709782845", function() window:ToggleHUD() end)
+    AddFooterButton(Color3.fromRGB(90, 150, 255), "rbxassetid://10709782758", function() window:OpenThemeDialog() end)
 
     function window:AddTab(tabOptions)
         tabOptions = tabOptions or {}
@@ -622,8 +1348,9 @@ function Vortex:CreateWindow(options)
         TabLabel.TextXAlignment = Enum.TextXAlignment.Left
         TabLabel.Parent = TabButton
 
+        local TabIcon
         if icon then
-            local TabIcon = Instance.new("ImageLabel")
+            TabIcon = Instance.new("ImageLabel")
             TabIcon.Size = UDim2.new(0, 16, 0, 16)
             TabIcon.Position = UDim2.new(0, 8, 0.5, -8)
             TabIcon.BackgroundTransparency = 1
@@ -660,24 +1387,37 @@ function Vortex:CreateWindow(options)
             Elements = {}
         }
 
+        window:RegisterTheme(TabButton, "BackgroundColor3", "Container", function() return window.CurrentTab == tab end, "Container")
+        window:RegisterTheme(TabBtnStroke, "Color", "Accent", function() return window.CurrentTab == tab end, "Border")
+        window:RegisterTheme(TabLabel, "TextColor3", "Text", function() return window.CurrentTab == tab end, "MutedText")
+        if TabIcon then
+            window:RegisterTheme(TabIcon, "ImageColor3", "Text", function() return window.CurrentTab == tab end, "MutedText")
+        end
+        window:RegisterTheme(TabScrollContent, "ScrollBarImageColor3", "Accent")
+
         local function Select()
             if window.CurrentTab then
-                window.CurrentTab.ContentFrame.Visible = false
-                window.CurrentTab.Label.TextColor3 = Color3.fromRGB(150, 155, 170)
-                if window.CurrentTab.Button:FindFirstChildOfClass("ImageLabel") then
-                    window.CurrentTab.Button:FindFirstChildOfClass("ImageLabel").ImageColor3 = Color3.fromRGB(150, 155, 170)
-                end
-                Tween(window.CurrentTab.Button, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(22, 25, 36)})
-                Tween(window.CurrentTab.Stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(45, 50, 65)})
+                local prev = window.CurrentTab
+                prev.ContentFrame.Visible = false
+                task.spawn(function()
+                    window:UpdateThemeObject(prev.Button)
+                    window:UpdateThemeObject(prev.Stroke)
+                    window:UpdateThemeObject(prev.Label)
+                    if prev.Button:FindFirstChildOfClass("ImageLabel") then
+                        window:UpdateThemeObject(prev.Button:FindFirstChildOfClass("ImageLabel"))
+                    end
+                end)
             end
             window.CurrentTab = tab
             tab.ContentFrame.Visible = true
-            tab.Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-            if TabButton:FindFirstChildOfClass("ImageLabel") then
-                TabButton:FindFirstChildOfClass("ImageLabel").ImageColor3 = Color3.fromRGB(255, 255, 255)
-            end
-            Tween(TabButton, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(28, 32, 45)})
-            Tween(tab.Stroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(58, 147, 255)})
+            task.spawn(function()
+                window:UpdateThemeObject(TabButton)
+                window:UpdateThemeObject(TabBtnStroke)
+                window:UpdateThemeObject(TabLabel)
+                if TabIcon then
+                    window:UpdateThemeObject(TabIcon)
+                end
+            end)
         end
 
         TabButton.MouseButton1Click:Connect(Select)
@@ -697,6 +1437,8 @@ function Vortex:CreateWindow(options)
             SectionLabel.TextXAlignment = Enum.TextXAlignment.Center
             SectionLabel.TextYAlignment = Enum.TextYAlignment.Center
             SectionLabel.Parent = TabScrollContent
+
+            window:RegisterTheme(SectionLabel, "TextColor3", "Text")
 
             local section = {}
 
@@ -805,7 +1547,7 @@ function Vortex:CreateWindow(options)
             }
 
             local function UpdateVisual(animate)
-                local currentColor = window.AccentColors[window.AccentIndex]
+                local currentColor = window.CurrentTheme.Accent
                 local targetColor = toggleObject.Value and currentColor or Color3.fromRGB(40, 45, 55)
                 local targetStrokeColor = toggleObject.Value and currentColor or Color3.fromRGB(55, 62, 77)
                 if animate then
@@ -817,6 +1559,12 @@ function Vortex:CreateWindow(options)
                 end
             end
             toggleObject.UpdateVisual = UpdateVisual
+
+            window:RegisterTheme(Container, "BackgroundColor3", "Element")
+            window:RegisterTheme(Stroke, "Color", "Border")
+            window:RegisterTheme(Label, "TextColor3", "Text")
+            window:RegisterTheme(Switch, "BackgroundColor3", "Accent", function() return toggleObject.Value end, Color3.fromRGB(40, 45, 55))
+            window:RegisterTheme(SwitchStroke, "Color", "Accent", function() return toggleObject.Value end, Color3.fromRGB(55, 62, 77))
 
             function toggleObject:OnChanged(callback)
                 table.insert(self.ChangedCallbacks, callback)
@@ -854,6 +1602,7 @@ function Vortex:CreateWindow(options)
                 InfoBtn.ImageColor3 = Color3.fromRGB(58, 147, 255)
                 InfoBtn.Parent = Container
                 SetupTooltip(InfoBtn, infoText)
+                window:RegisterTheme(InfoBtn, "ImageColor3", "Accent")
             end
 
             local el = {
@@ -957,6 +1706,14 @@ function Vortex:CreateWindow(options)
                 end
             end
 
+            window:RegisterTheme(Container, "BackgroundColor3", "Element")
+            window:RegisterTheme(Stroke, "Color", "Border")
+            window:RegisterTheme(Label, "TextColor3", "Text")
+            window:RegisterTheme(ValueLabel, "TextColor3", "Text")
+            window:RegisterTheme(Track, "BackgroundColor3", "Container")
+            window:RegisterTheme(TrackStroke, "Color", "Border")
+            window:RegisterTheme(Fill, "BackgroundColor3", "Accent")
+
             function sliderObject:OnChanged(callback)
                 table.insert(self.ChangedCallbacks, callback)
                 task.spawn(callback, self.Value)
@@ -1007,15 +1764,25 @@ function Vortex:CreateWindow(options)
             end)
 
             local moveCon, endCon
-            moveCon = UserInputService.InputChanged:Connect(function(input)
-                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    HandleInput()
-                end
-            end)
 
-            endCon = UserInputService.InputEnded:Connect(function(input)
+            Track.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    dragging = false
+                    dragging = true
+                    HandleInput()
+                    if moveCon then moveCon:Disconnect() end
+                    if endCon then endCon:Disconnect() end
+                    moveCon = UserInputService.InputChanged:Connect(function(moveInput)
+                        if dragging and (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) then
+                            HandleInput()
+                        end
+                    end)
+                    endCon = UserInputService.InputEnded:Connect(function(endInput)
+                        if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                            dragging = false
+                            if moveCon then moveCon:Disconnect() moveCon = nil end
+                            if endCon then endCon:Disconnect() endCon = nil end
+                        end
+                    end)
                 end
             end)
 
@@ -1069,14 +1836,20 @@ function Vortex:CreateWindow(options)
             BtnStroke.Thickness = 1
             BtnStroke.Parent = Btn
 
+            window:RegisterTheme(Container, "BackgroundColor3", "Element")
+            window:RegisterTheme(Stroke, "Color", "Border")
+            window:RegisterTheme(Btn, "BackgroundColor3", "Container")
+            window:RegisterTheme(BtnStroke, "Color", "Border")
+            window:RegisterTheme(Btn, "TextColor3", "Text")
+
             Btn.MouseEnter:Connect(function()
                 Tween(Btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(40, 45, 60)})
-                Tween(BtnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(58, 147, 255)})
+                Tween(BtnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Accent})
             end)
 
             Btn.MouseLeave:Connect(function()
-                Tween(Btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(35, 40, 55)})
-                Tween(BtnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(45, 52, 71)})
+                Tween(Btn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = window.CurrentTheme.Container})
+                Tween(BtnStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Border})
             end)
 
             Btn.MouseButton1Click:Connect(function()
@@ -1161,6 +1934,11 @@ function Vortex:CreateWindow(options)
                 ChangedCallbacks = {}
             }
 
+            window:RegisterTheme(Container, "BackgroundColor3", "Element")
+            window:RegisterTheme(Stroke, "Color", "Border")
+            window:RegisterTheme(Label, "TextColor3", "Text")
+            window:RegisterTheme(Icon, "ImageColor3", "MutedText")
+
             local open = false
 
             local function ToggleOpen()
@@ -1217,14 +1995,18 @@ function Vortex:CreateWindow(options)
                 OptStroke.Thickness = 1
                 OptStroke.Parent = OptBtn
 
+                window:RegisterTheme(OptBtn, "BackgroundColor3", "Container")
+                window:RegisterTheme(OptStroke, "Color", "Border")
+                window:RegisterTheme(OptBtn, "TextColor3", "Text")
+
                 OptBtn.MouseEnter:Connect(function()
                     Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(40, 45, 60)})
-                    Tween(OptStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(58, 147, 255)})
+                    Tween(OptStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Accent})
                 end)
 
                 OptBtn.MouseLeave:Connect(function()
-                    Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = Color3.fromRGB(35, 40, 55)})
-                    Tween(OptStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = Color3.fromRGB(45, 52, 71)})
+                    Tween(OptBtn, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = window.CurrentTheme.Container})
+                    Tween(OptStroke, {0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Color = window.CurrentTheme.Border})
                 end)
 
                 OptBtn.MouseButton1Click:Connect(function()
@@ -1310,6 +2092,14 @@ function Vortex:CreateWindow(options)
                 Type = "Input",
                 ChangedCallbacks = {}
             }
+
+            window:RegisterTheme(Container, "BackgroundColor3", "Element")
+            window:RegisterTheme(Stroke, "Color", "Border")
+            window:RegisterTheme(Label, "TextColor3", "Text")
+            window:RegisterTheme(BoxContainer, "BackgroundColor3", "Container")
+            window:RegisterTheme(BoxStroke, "Color", "Border")
+            window:RegisterTheme(Box, "TextColor3", "Text")
+            window:RegisterTheme(Box, "PlaceholderColor3", "MutedText")
 
             function inputObject:OnChanged(callback)
                 table.insert(self.ChangedCallbacks, callback)
@@ -1403,6 +2193,13 @@ function Vortex:CreateWindow(options)
                 Type = "Keybind",
                 ChangedCallbacks = {}
             }
+
+            window:RegisterTheme(Container, "BackgroundColor3", "Element")
+            window:RegisterTheme(Stroke, "Color", "Border")
+            window:RegisterTheme(Label, "TextColor3", "Text")
+            window:RegisterTheme(KeyBtn, "BackgroundColor3", "Container")
+            window:RegisterTheme(KeyStroke, "Color", "Border")
+            window:RegisterTheme(KeyBtn, "TextColor3", "Text")
 
             local connection
             local listening = false
